@@ -31,6 +31,7 @@ const THRESHOLD = 5;                            // nota mínima (/10) per consid
 const TEACHER_CODE = "CANVIA-AQUEST-CODI-PER-UN-DE-LLARG-I-SECRET"; // "contrasenya" del professorat
 const ACCESS_SHEET_NAME = "Accés";              // pestanya on es guarden els codis de l'alumnat
 const PAGE_URL = ""; // opcional: només si has publicat seguiment-modul.html en una URL real. Deixa-ho buit si el/la reps com a fitxer.
+const HTML_FILE_ID = ""; // opcional: ID del fitxer seguiment-modul.html pujat al teu Drive, per adjuntar-lo als correus. Deixa-ho buit per no adjuntar-lo.
 
 /**
  * INSTRUCCIONS DE DESPLEGAMENT (fes-ho un sol cop) — detalls a apps-script/README.md
@@ -150,6 +151,11 @@ function enviaEnllacosPersonalitzats() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ACCESS_SHEET_NAME);
   if (!sh) { SpreadsheetApp.getUi().alert("Primer genera els codis (menú Seguiment > 1. Genera codis d'accés)."); return; }
   const execUrl = ScriptApp.getService().getUrl();
+  let attachment = null, attachError = "";
+  if (HTML_FILE_ID) {
+    try { attachment = DriveApp.getFileById(HTML_FILE_ID).getBlob(); }
+    catch (err) { attachError = "\n\nATENCIÓ: no s'ha pogut adjuntar seguiment-modul.html (revisa HTML_FILE_ID): " + String(err); }
+  }
   const rows = sh.getDataRange().getValues();
   let sent = 0;
   for (let r = 1; r < rows.length; r++) {
@@ -157,12 +163,14 @@ function enviaEnllacosPersonalitzats() {
     if (!email || !code) continue;
     let plain = "Hola " + nom + ",\n\n"
       + "Per consultar el teu seguiment del mòdul, obre el fitxer seguiment-modul.html "
-      + "que t'ha donat el/la professor/a i enganxa-hi aquests dos valors:\n\n"
+      + (attachment ? "adjunt a aquest correu" : "que t'ha donat el/la professor/a")
+      + " i enganxa-hi aquests dos valors:\n\n"
       + "URL de l'aplicatiu:\n" + execUrl + "\n\n"
       + "El teu codi d'accés:\n" + code + "\n\n";
     let html = "<p>Hola " + nom + ",</p>"
       + "<p>Per consultar el teu seguiment del mòdul, obre el fitxer <b>seguiment-modul.html</b> "
-      + "que t'ha donat el/la professor/a i enganxa-hi aquests dos valors:</p>"
+      + (attachment ? "adjunt a aquest correu" : "que t'ha donat el/la professor/a")
+      + " i enganxa-hi aquests dos valors:</p>"
       + "<p><b>URL de l'aplicatiu:</b><br><code>" + execUrl + "</code></p>"
       + "<p><b>El teu codi d'accés:</b><br><code>" + code + "</code></p>";
     if (PAGE_URL) {
@@ -172,10 +180,12 @@ function enviaEnllacosPersonalitzats() {
     }
     plain += "És personal i intransferible: no el comparteixis amb ningú.\n";
     html += "<p>És personal i intransferible: no el comparteixis amb ningú.</p>";
-    MailApp.sendEmail(email, "El teu accés al seguiment del mòdul", plain, { htmlBody: html });
+    const options = { htmlBody: html };
+    if (attachment) options.attachments = [attachment];
+    MailApp.sendEmail(email, "El teu accés al seguiment del mòdul", plain, options);
     sent++;
   }
-  SpreadsheetApp.getUi().alert("S'han enviat " + sent + " correus.");
+  SpreadsheetApp.getUi().alert("S'han enviat " + sent + " correus." + attachError);
 }
 
 function buildFullPayload_() {
