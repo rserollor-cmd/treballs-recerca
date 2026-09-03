@@ -150,6 +150,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   <span class="course" id="courseLabel">Cap fitxer importat</span>
   <span class="rolebadge" id="roleBadge" hidden></span>
   <span class="spacer"></span>
+  <button id="btnRefreshApi" hidden title="Torna a demanar les dades al full de Google">🔄 Actualitza</button>
   <button id="btnReimport" hidden>Importar un altre fitxer</button>
   <button id="btnReset" title="Esborra dades i configuració desades">Reiniciar</button>
 </header>
@@ -164,34 +165,47 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 <!-- IMPORT -->
 <section class="view active" id="v-import">
-  <div id="rolePick">
-    <h1>Qui ets?</h1>
-    <p class="hint">Aquesta eina funciona <b>al teu navegador</b>: les dades del full de càlcul no s'envien a cap servidor.</p>
-    <div class="roles">
-      <div class="rolecard" id="pickTeacher">
-        <h3>👩‍🏫 Professor/a</h3>
-        <p class="hint">Importa el llibre d'avaluació complet, consulta el tauler de classe i els resultats d'aprenentatge de tot l'alumnat. Les dades es desen al navegador perquè no calgui reimportar cada cop.</p>
-      </div>
-      <div class="rolecard" id="pickStudent">
-        <h3>🎓 Alumne/a</h3>
-        <p class="hint">Importa el mateix fitxer que t'ha facilitat el/la professor/a i, en entrar el teu correu, veuràs només el teu propi seguiment. No es desa res al dispositiu en tancar la pàgina.</p>
-      </div>
+  <h1>Accés al seguiment</h1>
+  <div class="card" id="apiCard" style="margin-bottom:18px">
+    <h2>Connecta amb el full de Google (recomanat)</h2>
+    <p class="hint">Inicia sessió al navegador amb el teu compte de Google <b>institucional</b> i enganxa la URL que t'ha donat el/la professor/a. Les dades sempre estan actualitzades — l'alumnat només veurà el seu propi seguiment; el professorat, el tauler complet. Ho decideix el servidor de Google, no aquesta pàgina.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+      <label style="flex:1;min-width:260px">URL de l'aplicatiu
+        <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec"></label>
+      <button class="primary" id="apiConnectBtn">Connecta</button>
     </div>
+    <p class="hint" id="apiStatus" style="margin-top:8px"></p>
   </div>
-  <div id="importArea" hidden>
-    <h1>Importació del llibre d'avaluació</h1>
-    <p class="hint">Importa el fitxer <b>.xlsx</b> del mòdul (pestanyes tipus «AVALUACIÓ»/«RESUM RAs», i opcionalment Assistència, Compromís i professionalitat, Material i Incidències).</p>
-    <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
-      <p style="font-size:16px;margin:0 0 6px"><b>Arrossega el fitxer aquí</b> o fes clic per seleccionar-lo</p>
+  <details id="manualDetails">
+    <summary style="cursor:pointer;font-weight:600;margin-bottom:10px">Alternativa: importa un fitxer .xlsx manualment (sense connexió, sense sincronització)</summary>
+    <div id="rolePick">
+      <p class="hint">Aquesta eina funciona <b>al teu navegador</b>: les dades del full de càlcul no s'envien a cap servidor.</p>
+      <div class="roles">
+        <div class="rolecard" id="pickTeacher">
+          <h3>👩‍🏫 Professor/a</h3>
+          <p class="hint">Importa el llibre d'avaluació complet, consulta el tauler de classe i els resultats d'aprenentatge de tot l'alumnat. Les dades es desen al navegador perquè no calgui reimportar cada cop.</p>
+        </div>
+        <div class="rolecard" id="pickStudent">
+          <h3>🎓 Alumne/a</h3>
+          <p class="hint">Importa el mateix fitxer que t'ha facilitat el/la professor/a i, en entrar el teu correu, veuràs només el teu propi seguiment. No es desa res al dispositiu en tancar la pàgina. Nota: aquí qualsevol persona que tingui el fitxer pot triar «Professor/a» i veure-ho tot — per a un accés realment restringit, fes servir la connexió de dalt.</p>
+        </div>
+      </div>
     </div>
-    <div id="sheetPickWrap" style="margin-top:14px" hidden>
-      <label>S'han trobat diverses pestanyes amb estructura de RA. Quina vols fer servir?
-        <select id="sheetPick"></select></label>
-      <button id="sheetPickApply" class="primary" style="margin-top:8px">Utilitza aquesta pestanya</button>
+    <div id="importArea" hidden>
+      <h1>Importació del llibre d'avaluació</h1>
+      <p class="hint">Importa el fitxer <b>.xlsx</b> del mòdul (pestanyes tipus «AVALUACIÓ»/«RESUM RAs», i opcionalment Assistència, Compromís i professionalitat, Material i Incidències).</p>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+        <p style="font-size:16px;margin:0 0 6px"><b>Arrossega el fitxer aquí</b> o fes clic per seleccionar-lo</p>
+      </div>
+      <div id="sheetPickWrap" style="margin-top:14px" hidden>
+        <label>S'han trobat diverses pestanyes amb estructura de RA. Quina vols fer servir?
+          <select id="sheetPick"></select></label>
+        <button id="sheetPickApply" class="primary" style="margin-top:8px">Utilitza aquesta pestanya</button>
+      </div>
+      <div id="importSummary" style="margin-top:18px"></div>
     </div>
-    <div id="importSummary" style="margin-top:18px"></div>
-  </div>
+  </details>
 </section>
 
 <!-- DASHBOARD -->
@@ -231,7 +245,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <!-- CONFIG -->
 <section class="view" id="v-config">
   <h1>Configuració</h1>
-  <div class="card" style="margin-bottom:18px">
+  <div class="card" style="margin-bottom:18px" id="apiConfigCard" hidden></div>
+  <div class="card" style="margin-bottom:18px" id="generalConfigCard">
     <h2>Dades generals</h2>
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
       <label style="flex:1;min-width:220px">Nom del mòdul (per a les pantalles)
@@ -246,7 +261,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <h2>Pestanya de notes utilitzada</h2>
     <div id="sheetInfoBox"></div>
   </div>
-  <div class="card">
+  <div class="card" id="linksConfigCard">
     <h2>Vincles amb altres pestanyes</h2>
     <p class="hint">L'alumnat d'Assistència, Compromís i professionalitat i Material es vincula automàticament (per ordre de fila o pel nom). Revisa i corregeix aquí si cal (número de fila de dades a la pestanya corresponent, començant per 1).</p>
     <div class="tablewrap"><table class="linktable" id="linkTable"></table></div>
@@ -308,7 +323,7 @@ function fmtDate(v){
   return v==null?"":String(v);
 }
 
-let STATE=null, ROLE=null, CHARTS={}, sortKey="global", sortDir=-1, myIdx=null, lastAb=null;
+let STATE=null, ROLE=null, CHARTS={}, sortKey="global", sortDir=-1, myIdx=null, lastAb=null, autoRefreshTimer=null;
 
 /* ============ PARSING ============ */
 function findRaTitleRow(rows){
@@ -558,9 +573,9 @@ function recompute(){
     s.globalEff = s.global!=null? s.global : (vals.length? vals.reduce((a,b)=>a+b,0)/vals.length : null);
     s.globalIsFallback = s.global==null && vals.length>0;
     s.assolit = s.globalEff!=null? s.globalEff>=th : null;
-    s.attendance = (STATE.attendance && s.attIdx>=0)? STATE.attendance[s.attIdx] : null;
-    s.material = (STATE.material && s.matIdx>=0)? STATE.material[s.matIdx] : null;
-    s.compromis = (STATE.compromis && s.compIdx>=0)? STATE.compromis[s.compIdx] : null;
+    if(Array.isArray(STATE.attendance)) s.attendance = s.attIdx>=0? STATE.attendance[s.attIdx] : null;
+    if(Array.isArray(STATE.material)) s.material = s.matIdx>=0? STATE.material[s.matIdx] : null;
+    if(Array.isArray(STATE.compromis)) s.compromis = s.compIdx>=0? STATE.compromis[s.compIdx] : null;
   });
   STATE.classRaAvg={};
   STATE.raGroups.forEach(g=>{
@@ -589,8 +604,9 @@ const CHART_BASE=()=>({responsive:true,maintainAspectRatio:true,
 function refreshAll(){
   $("#courseLabel").textContent=STATE.subject+" · "+STATE.students.length+" alumnes · "+STATE.raGroups.length+" RA · pestanya «"+STATE.sheetUsed+"»";
   $("#roleBadge").hidden=false;
-  $("#roleBadge").textContent = ROLE==="teacher"?"Mode professor/a":"Mode alumnat";
+  $("#roleBadge").textContent = (ROLE==="teacher"?"Mode professor/a":"Mode alumnat") + (STATE.dataSourceIsApi?" · en directe":"");
   $("#btnReimport").hidden=false;
+  $("#btnRefreshApi").hidden=!STATE.dataSourceIsApi;
   renderImportSummary();
   if(ROLE==="teacher"){ $$('nav.tabs button[data-v="dash"],nav.tabs button[data-v="ra"],nav.tabs button[data-v="config"],nav.tabs button[data-v="myview"]').forEach(b=>b.hidden=false); }
   else { $$('nav.tabs button[data-v="dash"],nav.tabs button[data-v="ra"],nav.tabs button[data-v="config"]').forEach(b=>b.hidden=true); $('nav.tabs button[data-v="myview"]').hidden=false; }
@@ -717,6 +733,16 @@ $("#raExportCsv").onclick=()=>{
 
 /* ---- CONFIG ---- */
 function renderConfig(){
+  $("#generalConfigCard").hidden = !!STATE.dataSourceIsApi;
+  $("#sheetInfoCard").hidden = !!STATE.dataSourceIsApi;
+  $("#linksConfigCard").hidden = !!STATE.dataSourceIsApi;
+  $("#apiConfigCard").hidden = !STATE.dataSourceIsApi;
+  if(STATE.dataSourceIsApi){
+    $("#apiConfigCard").innerHTML=`<h2>Connectat en directe</h2>
+      <p>Aquestes dades venen del full de Google (<code>${esc(STATE.apiUrl||"")}</code>) i s'actualitzen soles amb el botó «🔄 Actualitza» de dalt. El nom del mòdul, el llindar d'assoliment i la pestanya utilitzada es configuren al codi de l'Apps Script, no aquí.</p>
+      <p class="hint">Mòdul: <b>${esc(STATE.subject)}</b> · Llindar d'assoliment: <b>${STATE.threshold}</b>/10</p>`;
+    return;
+  }
   $("#subjectInput").value=STATE.subject||"";
   $("#thInput").value=STATE.threshold;
   $("#optShowClass").checked=!!STATE.showClassAvg;
@@ -841,7 +867,95 @@ function renderMyContent(){
   }
 }
 
-/* ============ EVENTS: ROLE + IMPORT ============ */
+/* ============ GOOGLE SHEETS (Apps Script) CONNECTION ============ */
+function fetchJSONP(baseUrl, params){
+  return new Promise((resolve,reject)=>{
+    const cbName="jsonp_cb_"+Math.random().toString(36).slice(2);
+    const script=document.createElement("script");
+    let done=false;
+    const timeout=setTimeout(()=>{ if(!done){ cleanup(); reject(new Error("Temps d'espera exhaurit. Comprova la URL i que has iniciat sessió amb el compte de Google correcte en aquest navegador.")); } },20000);
+    function cleanup(){ delete window[cbName]; script.remove(); clearTimeout(timeout); }
+    window[cbName]=(data)=>{ done=true; cleanup(); resolve(data); };
+    const qs=Object.assign({},params,{callback:cbName});
+    const sep=baseUrl.includes("?")?"&":"?";
+    script.src=baseUrl+sep+Object.entries(qs).map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&");
+    script.onerror=()=>{ if(!done){ cleanup(); reject(new Error("No s'ha pogut carregar la URL. Revisa que sigui correcta.")); } };
+    document.head.appendChild(script);
+  });
+}
+function apiErrMsg(payload){
+  if(payload.error==="no-auth") return "No s'ha pogut identificar el teu compte de Google. Inicia sessió en aquest navegador amb el teu correu institucional i torna-ho a provar.";
+  if(payload.error==="forbidden") return "Aquest correu no té accés al tauler del professorat.";
+  if(payload.error==="not-found") return "No s'ha trobat cap alumne/a amb aquest correu al full de notes. Parla amb el/la professor/a.";
+  return payload.message || "No s'han pogut carregar les dades.";
+}
+function buildStateFromApi(payload,url){
+  const raw=(payload.role==="teacher"? payload.students : [payload.student]).map((s,i)=>({
+    idx:i, cognoms:s.cognoms||"", nom:s.nom||s.fullName, fullName:s.fullName,
+    raScore:s.raScore, taskVals:s.taskVals, global:s.global, globalEff:s.globalEff,
+    globalIsFallback:s.globalIsFallback, assolit:s.assolit, recovery:s.recovery||"", observations:s.observations||"",
+    attendance:s.attendance||null, material:s.material||null, compromis:s.compromis||null, incidents:s.incidents||[],
+    email:s.email||"",
+  }));
+  STATE={
+    dataSourceIsApi:true, apiUrl:url,
+    courseName:payload.subject, subject:payload.subject, sheetUsed:payload.sheetUsed||"(en directe)",
+    threshold:payload.threshold, raGroups:payload.raGroups, students:raw,
+    classRaAvg:payload.classRaAvg||{}, classGlobal:payload.classGlobal!=null?payload.classGlobal:null,
+    attendance: raw.some(s=>s.attendance)||null, compromis: raw.some(s=>s.compromis)||null,
+    material: raw.some(s=>s.material)||null, incidents: raw.some(s=>s.incidents&&s.incidents.length)||null,
+    candidates:[], showClassAvg:false, linkOverrides:{},
+  };
+}
+function showApiStatus(msg,isError){ const el=$("#apiStatus"); el.textContent=msg; el.style.color=isError?"var(--bad)":""; }
+function saveApiUrl(url){ try{ localStorage.setItem("seguimentra:apiurl",url); }catch(e){} }
+function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; } }
+function startAutoRefresh(){
+  stopAutoRefresh();
+  autoRefreshTimer=setInterval(()=>{ refreshFromApi(true); }, 180000);
+}
+async function refreshFromApi(silent){
+  if(!STATE || !STATE.dataSourceIsApi) return;
+  if(!silent) showApiStatus("Actualitzant…");
+  try{
+    const action = ROLE==="teacher"? "full" : "me";
+    const payload=await fetchJSONP(STATE.apiUrl,{action, _:Date.now()});
+    if(payload.error){ if(!silent) showApiStatus(apiErrMsg(payload),true); return; }
+    buildStateFromApi(payload, STATE.apiUrl);
+    if(ROLE==="student") myIdx=STATE.students[0].idx;
+    refreshAll();
+    const active=$(".view.active"); if(active) show(active.id.replace("v-",""));
+    if(!silent) showApiStatus("Actualitzat ✓ ("+new Date().toLocaleTimeString("ca-ES")+")");
+  }catch(e){ if(!silent) showApiStatus("Error en actualitzar: "+e.message,true); }
+}
+async function connectApi(url){
+  if(!url){ showApiStatus("Introdueix la URL de l'aplicatiu.",true); return; }
+  STATE=null; myIdx=null; ROLE=null;
+  saveApiUrl(url);
+  showApiStatus("Connectant…");
+  try{
+    let payload=await fetchJSONP(url,{action:"me",_:Date.now()});
+    if(payload.error==="not-found"){ payload=await fetchJSONP(url,{action:"full",_:Date.now()}); }
+    if(payload.error){ showApiStatus(apiErrMsg(payload),true); return; }
+    buildStateFromApi(payload,url);
+    ROLE = payload.role==="teacher"? "teacher" : "student";
+    if(ROLE==="student") myIdx=STATE.students[0].idx;
+    refreshAll();
+    startAutoRefresh();
+    show(ROLE==="teacher"?"dash":"myview");
+  }catch(e){ showApiStatus("Error de connexió: "+e.message,true); }
+}
+$("#apiConnectBtn").onclick=()=>connectApi($("#apiUrlInput").value.trim());
+$("#btnRefreshApi").onclick=()=>refreshFromApi(false);
+(function initApiUrl(){
+  const params=new URLSearchParams(location.search);
+  const fromParam=params.get("api");
+  let saved=null; try{ saved=localStorage.getItem("seguimentra:apiurl"); }catch(e){}
+  const url=fromParam||saved;
+  if(url){ $("#apiUrlInput").value=url; if(fromParam) connectApi(url); }
+})();
+
+/* ============ EVENTS: ROLE + IMPORT (manual .xlsx) ============ */
 $("#pickTeacher").onclick=()=>{ ROLE="teacher"; $("#rolePick").hidden=true; if(!loadLast()){ $("#importArea").hidden=false; } };
 $("#pickStudent").onclick=()=>{ ROLE="student"; $("#rolePick").hidden=true; $("#importArea").hidden=false; };
 
@@ -885,10 +999,13 @@ $("#fileInput").onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]
 $("#dropzone").addEventListener("drop",e=>{ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
 
 $("#btnReimport").onclick=()=>{
+  stopAutoRefresh(); STATE=null; ROLE=null; myIdx=null;
   show("import"); $("#rolePick").hidden=false; $("#importArea").hidden=true; $("#sheetPickWrap").hidden=true;
+  $("#btnRefreshApi").hidden=true; $("#roleBadge").hidden=true;
 };
 $("#btnReset").onclick=()=>{
   if(confirm("Segur que vols esborrar totes les dades i la configuració desades en aquest navegador?")){
+    stopAutoRefresh();
     try{ Object.keys(localStorage).filter(k=>k.startsWith("seguimentra:")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
     location.reload();
   }
