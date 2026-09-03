@@ -165,6 +165,11 @@ header h1 {
   color: #1a1a1a;
 }
 
+.stat-bloc-visites {
+  opacity: .7;
+  font-style: italic;
+}
+
 .stat-label {
   font-size: .8rem;
   color: rgba(0,0,0,.6);
