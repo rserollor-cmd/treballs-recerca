@@ -7,67 +7,59 @@
  * aplicació web, l'eina seguiment-modul.html s'hi pot connectar per llegir les dades
  * sempre actualitzades, sense haver de baixar ni pujar cap fitxer .xlsx.
  *
- * Cada persona que hi accedeix s'identifica amb el SEU compte de Google — no calen
- * contrasenyes ni introduir cap correu a mà:
- *   - Si el correu és a TEACHER_EMAILS -> pot demanar les dades de TOTA la classe.
- *   - Si el correu coincideix amb el d'un alumne/a -> només rep LES SEVES dades.
- *   - Si no coincideix amb res -> resposta d'error, mai dades d'altres persones.
+ * IDENTIFICACIÓ — sense cap projecte de Google Cloud ni tocar OAuth. Cada persona
+ * rep un ENLLAÇ PERSONAL amb un codi d'accés secret (una mena de contrasenya llarga
+ * i intransferible):
+ *   - El codi del professorat (TEACHER_CODE) dona accés al tauler complet.
+ *   - Cada alumne/a té el seu propi codi (generat i enviat des del mateix full,
+ *     veure el menú "Seguiment" que apareix en obrir-lo) i només rep LES SEVES dades.
+ *   - Un codi que no coincideix amb res -> resposta d'error, mai dades d'altres persones.
+ * Funciona igual sigui quin sigui el domini de correu de cadascú (útil quan, com aquí,
+ * el professorat és d'un domini com @xtec.cat i l'alumnat d'un altre com el propi
+ * de l'institut): el codi és el que dona accés, no el compte de Google.
  *
- * DOS MODES D'IDENTIFICACIÓ (tria el que et calgui a CLIENT_ID més avall)
- *   A) Un sol domini Google Workspace (senzill): si QUI POSSEEIX el full i TOT
- *      l'alumnat són del mateix domini (p.ex. tots @elteudomini.cat), deixa
- *      CLIENT_ID buit ("") i desplega amb «Qui té accés: Anyone within [domini]».
- *      Google identifica sol qui truca (Session.getActiveUser()).
- *   B) Dominis diferents (p.ex. professorat @xtec.cat, alumnat @elteuinstitut.cat):
- *      l'opció "dins del domini" només en permet UN. Cal fer «Inicia sessió amb
- *      Google» des de la pàgina web (OAuth) i verificar aquí el testimoni (token)
- *      rebut — funciona amb qualsevol combinació de dominis. Omple CLIENT_ID amb
- *      el teu OAuth Client ID (veute apps-script/README.md) i desplega amb «Qui
- *      té accés: Anyone».
+ * ATENCIÓ — SEGURETAT: TEACHER_CODE és una contrasenya. Un cop l'hagis posat aquí i
+ * desplegat, NO tornis a pujar aquest fitxer amb el codi real a un repositori públic
+ * (com GitHub) — deixa-hi sempre el valor de mostra. El fitxer que fa falta protegir
+ * és el que queda desat DINS de l'editor d'Apps Script del teu full, no cap còpia
+ * externa.
  *
  * CONFIGURACIÓ (edita només aquestes constants)
  */
 const SHEET_NAME = "RESUM RAs";                 // pestanya amb les notes (p.ex. "AVALUACIÓ" o "RESUM RAs")
-const TEACHER_EMAILS = ["EL_TEU_CORREU@exemple.cat"]; // correus amb accés al tauler complet
 const THRESHOLD = 5;                            // nota mínima (/10) per considerar un RA "assolit"
-const CLIENT_ID = "";                           // OAuth Client ID (mode B). Deixa "" pel mode A.
+const TEACHER_CODE = "CANVIA-AQUEST-CODI-PER-UN-DE-LLARG-I-SECRET"; // "contrasenya" del professorat
+const ACCESS_SHEET_NAME = "Accés";              // pestanya on es guarden els codis de l'alumnat
+const PAGE_URL = "https://EL-TEU-USUARI.github.io/EL-TEU-REPO/seguiment-modul.html"; // on hagis publicat l'eina
 
 /**
- * INSTRUCCIONS DE DESPLEGAMENT — veure apps-script/README.md per als detalls
- * complets (inclou el mode B, amb OAuth, pas a pas). Resum ràpid del mode A:
+ * INSTRUCCIONS DE DESPLEGAMENT (fes-ho un sol cop) — detalls a apps-script/README.md
  * 1. Obre el full de càlcul a Google Sheets.
  * 2. Extensions > Apps Script. Esborra el codi d'exemple i enganxa TOT aquest fitxer.
- * 3. Edita les constants de dalt (pestanya, correus de professorat, llindar).
+ * 3. Edita les constants de dalt: SHEET_NAME, TEACHER_CODE (posa'n un de llarg i
+ *    difícil d'endevinar), PAGE_URL (la URL on quedarà publicat seguiment-modul.html).
  * 4. Desa (icona de disquet).
  * 5. Desplega > Nova implementació > tipus "Aplicació web".
  *      - Executa com a: "Jo" (el propietari del full).
- *      - Qui té accés: "Anyone within [el teu domini]" (mode A) o "Anyone" (mode B).
- * 6. Autoritza els permisos que et demani Google.
- * 7. Copia la URL que et dona ("...script.google.com/macros/s/.../exec") i posa-la
- *    a seguiment-modul.html (camp "URL de l'aplicatiu", o a l'enllaç que
- *    comparteixis: ...seguiment-modul.html?api=URL ).
+ *      - Qui té accés: "Anyone" (no cal restringir per domini: el codi és el que
+ *        protegeix l'accés, no la identitat de Google).
+ * 6. Autoritza els permisos que et demani Google. Copia la URL que acaba en "/exec".
+ * 7. Torna al full de càlcul (recarrega'l si cal) — hi apareixerà un menú nou
+ *    "Seguiment". Fes clic a "1. Genera codis d'accés" i després a "2. Envia
+ *    enllaços per correu": cada alumne/a rebrà un correu amb el seu enllaç personal.
+ *    El teu propi enllaç (professorat) és:
+ *    PAGE_URL + "?api=" + LA_URL_DE_LEXEC + "&code=" + TEACHER_CODE
  * 8. Cada vegada que canviïs el codi, torna a "Gestiona implementacions" i puja
  *    una nova versió (si no, els canvis no es veuran reflectits).
  */
 
 function doGet(e) {
   const callback = e && e.parameter && e.parameter.callback;
-  const action = (e && e.parameter && e.parameter.action) || "me";
-  const idToken = e && e.parameter && e.parameter.id_token;
+  const code = e && e.parameter && e.parameter.code;
   let payload;
   try {
-    const identity = resolveIdentity_(idToken);
-    if (identity.error) {
-      payload = identity;
-    } else if (action === "full") {
-      if (TEACHER_EMAILS.map(normEmail_).indexOf(identity.email) < 0) {
-        payload = { error: "forbidden", message: "Aquest correu no té accés al tauler complet." };
-      } else {
-        payload = buildFullPayload_();
-      }
-    } else {
-      payload = buildMePayload_(identity.email);
-    }
+    const identity = resolveIdentity_(code);
+    payload = identity.error ? identity : (identity.role === "teacher" ? buildFullPayload_() : buildMePayload_(identity.email));
   } catch (err) {
     payload = { error: "exception", message: String(err) };
   }
@@ -78,48 +70,91 @@ function doGet(e) {
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
-/**
- * Determina qui truca. Si CLIENT_ID és buit (mode A), fa servir la identitat de
- * sessió de Google (només funciona si tothom és del mateix domini Workspace).
- * Si CLIENT_ID té valor (mode B), exigeix i verifica un testimoni (id_token)
- * obtingut amb "Inicia sessió amb Google" a la pàgina — funciona entre dominis.
- */
-function resolveIdentity_(idToken) {
-  if (CLIENT_ID) {
-    if (!idToken) {
-      return { error: "no-auth", message: "Cal iniciar sessió amb Google des de la pàgina (botó «Inicia sessió amb Google»)." };
-    }
-    return verifyIdToken_(idToken);
+/** Determina qui truca a partir del codi d'accés rebut a la URL. */
+function resolveIdentity_(code) {
+  if (!code) {
+    return { error: "no-auth", message: "Falta el codi d'accés personal a l'enllaç." };
   }
-  const email = normEmail_(Session.getActiveUser().getEmail());
+  if (code === TEACHER_CODE) {
+    return { role: "teacher" };
+  }
+  const email = lookupCodeEmail_(code);
   if (!email) {
-    return { error: "no-auth", message: "No s'ha pogut identificar el teu compte de Google. Assegura't d'haver iniciat sessió amb el correu de l'institut." };
+    return { error: "not-found", message: "Aquest codi d'accés no és vàlid. Demana'l de nou al/la professor/a." };
   }
-  return { email };
+  return { role: "student", email };
 }
 
-/** Verifica un ID token de Google Identity Services contra l'endpoint oficial de Google. */
-function verifyIdToken_(idToken) {
-  let info;
-  try {
-    const resp = UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken), { muteHttpExceptions: true });
-    if (resp.getResponseCode() !== 200) {
-      return { error: "no-auth", message: "El testimoni de Google no és vàlid o ha caducat. Torna a iniciar sessió." };
-    }
-    info = JSON.parse(resp.getContentText());
-  } catch (err) {
-    return { error: "exception", message: "No s'ha pogut verificar la identitat: " + String(err) };
+function lookupCodeEmail_(code) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ACCESS_SHEET_NAME);
+  if (!sh) return null;
+  const rows = sh.getDataRange().getValues();
+  for (let r = 1; r < rows.length; r++) {
+    if (String(rows[r][2] || "").trim() === code) return normEmail_(rows[r][0]);
   }
-  if (info.aud !== CLIENT_ID) {
-    return { error: "no-auth", message: "El testimoni no correspon a aquesta aplicació." };
-  }
-  if (info.email_verified !== "true" && info.email_verified !== true) {
-    return { error: "no-auth", message: "El correu de Google associat no està verificat." };
-  }
-  return { email: normEmail_(info.email) };
+  return null;
 }
 
 function normEmail_(s) { return String(s || "").trim().toLowerCase(); }
+
+/* ============ MENÚ I GESTIÓ DE CODIS D'ACCÉS ============ */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu("Seguiment")
+    .addItem("1. Genera codis d'accés", "generarCodisAccess")
+    .addItem("2. Envia enllaços per correu", "enviaEnllacosPersonalitzats")
+    .addToUi();
+}
+
+/** Crea (si cal) la pestanya "Accés" i assigna un codi nou a qui encara no en tingui. */
+function generarCodisAccess() {
+  const data = loadData_();
+  let sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ACCESS_SHEET_NAME);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(ACCESS_SHEET_NAME);
+    sh.appendRow(["Correu", "Nom", "Codi"]);
+  }
+  const rows = sh.getDataRange().getValues();
+  const existing = {};
+  for (let r = 1; r < rows.length; r++) { if (rows[r][0]) existing[normEmail_(rows[r][0])] = { row: r + 1, code: rows[r][2] }; }
+  let added = 0; const missingEmail = [];
+  data.students.forEach(s => {
+    if (!s.email) { missingEmail.push(s.fullName); return; }
+    const key = normEmail_(s.email);
+    if (existing[key] && existing[key].code) return;
+    const code = generateCode_();
+    if (existing[key]) sh.getRange(existing[key].row, 3).setValue(code);
+    else sh.appendRow([s.email, s.fullName, code]);
+    added++;
+  });
+  const msg = "S'han generat " + added + " codis nous."
+    + (missingEmail.length ? "\n\nSense correu detectat (no se'ls pot enviar enllaç fins que n'hi hagi): " + missingEmail.join(", ") : "");
+  SpreadsheetApp.getUi().alert(msg);
+}
+
+function generateCode_() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sense caràcters ambigus (0/O, 1/I/L)
+  let s = ""; for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+/** Envia per correu, a qui tingui un codi a la pestanya "Accés", el seu enllaç personal. */
+function enviaEnllacosPersonalitzats() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ACCESS_SHEET_NAME);
+  if (!sh) { SpreadsheetApp.getUi().alert("Primer genera els codis (menú Seguiment > 1. Genera codis d'accés)."); return; }
+  const execUrl = ScriptApp.getService().getUrl();
+  const rows = sh.getDataRange().getValues();
+  let sent = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const email = rows[r][0], nom = rows[r][1], code = rows[r][2];
+    if (!email || !code) continue;
+    const link = PAGE_URL + "?api=" + encodeURIComponent(execUrl) + "&code=" + encodeURIComponent(code);
+    MailApp.sendEmail(email, "El teu enllaç de seguiment del mòdul",
+      "Hola " + nom + ",\n\nAquest és el teu enllaç personal per consultar el teu seguiment del mòdul:\n" + link
+      + "\n\nÉs personal i intransferible: no el comparteixis amb ningú.\n");
+    sent++;
+  }
+  SpreadsheetApp.getUi().alert("S'han enviat " + sent + " correus.");
+}
 
 function buildFullPayload_() {
   const data = loadData_();

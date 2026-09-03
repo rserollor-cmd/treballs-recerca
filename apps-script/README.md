@@ -2,111 +2,82 @@
 
 `Codi.gs` és el codi que cal enganxar a l'editor d'Apps Script del teu full
 de càlcul perquè `seguiment-modul.html` es pugui connectar en directe (sense
-pujar cap fitxer) i cada persona vegi només el que li correspon segons el
-seu compte de Google real.
+pujar cap fitxer) i cada persona vegi només el que li correspon.
 
-Hi ha dos modes. **Fes servir el mode B** si, com és el vostre cas, el full
-és propietat d'un compte d'un domini (p. ex. `@xtec.cat`, el del
-professorat) i l'alumnat és d'un altre domini (p. ex. `@apellesmestres.cat`).
+No cal cap projecte de Google Cloud ni tocar OAuth: cada persona rep un
+**enllaç personal amb un codi d'accés secret** (una mena de contrasenya
+llarga i intransferible). Funciona igual sigui quin sigui el domini de
+correu de cadascú — útil en el vostre cas, amb el full a `@xtec.cat` i
+l'alumnat a `@apellesmestres.cat`.
 
-## Mode A — un sol domini (més senzill, no és el vostre cas si els dominis difereixen)
-
-Vàlid només si **qui posseeix el full** i **tot l'alumnat** tenen comptes del
-mateix domini Google Workspace.
+## Passos (un sol cop)
 
 1. Obre el full de càlcul a Google Sheets.
 2. Menú **Extensions > Apps Script**.
 3. Esborra el codi d'exemple i enganxa-hi tot el contingut de `Codi.gs`.
-4. Edita `SHEET_NAME`, `TEACHER_EMAILS` i `THRESHOLD`. Deixa `CLIENT_ID = ""`.
-5. Desa. **Desplega > Nova implementació** > tipus **Aplicació web**:
-   - Executa com a: **Jo**.
-   - Qui té accés: **Anyone within [el teu domini]**.
-6. Autoritza els permisos. Copia la URL que acaba en `/exec`.
-7. A `seguiment-modul.html`, enganxa aquesta URL al quadre "Connecta amb el
-   full de Google" (o comparteix `...seguiment-modul.html?api=LA_URL`).
+4. Edita les constants de dalt de tot del fitxer:
+   - `SHEET_NAME`: el nom exacte de la pestanya amb les notes (p. ex. `"AVALUACIÓ"` o `"RESUM RAs"`).
+   - `THRESHOLD`: nota mínima sobre 10 per considerar un RA "assolit" (per defecte 5).
+   - `TEACHER_CODE`: posa-hi un codi llarg i difícil d'endevinar (és la teva
+     "contrasenya" per accedir al tauler complet). **No el deixis com l'exemple.**
+   - `PAGE_URL`: la URL on quedarà publicat `seguiment-modul.html`. Aquest
+     repositori ja té GitHub Pages configurat des de la branca `main`, així
+     que un cop hi fusioneu aquest canvi serà
+     `https://ins-apelles-mestres.github.io/treballs-recerca/seguiment-modul.html`.
+5. Desa (icona de disquet).
+6. **Desplega > Nova implementació**:
+   - Tipus: **Aplicació web**.
+   - Executa com a: **Jo** (el propietari del full).
+   - Qui té accés: **Anyone** — no cal restringir per domini, perquè l'accés
+     el protegeix el codi, no la identitat de Google.
+7. Autoritza els permisos que et demani Google la primera vegada.
+8. Copia la URL que acaba en `/exec`.
+9. Torna al full de càlcul i recarrega'l (cal recarregar perquè aparegui el
+   menú nou). Veuràs un menú **"Seguiment"**:
+   - **1. Genera codis d'accés**: crea (si no hi és) una pestanya "Accés" i
+     hi assigna un codi a cada alumne/a que tingui correu detectat. Es pot
+     tornar a executar quan s'afegeixi algú nou: no toca els codis que ja
+     existeixen.
+   - **2. Envia enllaços per correu**: envia a cada alumne/a (de la pestanya
+     "Accés") un correu amb el seu enllaç personal.
 
-## Mode B — dominis diferents (el vostre cas: xtec.cat + apellesmestres.cat)
-
-L'opció "Anyone within [domini]" només accepta **un** domini, i seria el del
-propietari del full (`xtec.cat`) — l'alumnat de `apellesmestres.cat` quedaria
-exclòs abans d'arribar al codi. La solució: la pàgina web demana a la
-persona que iniciï sessió amb Google (OAuth) i el propi script verifica qui
-és contra els servidors de Google — això funciona amb qualsevol combinació
-de dominis.
-
-### B.1 — Crea un OAuth Client ID a Google Cloud (un sol cop)
-
-1. Vés a [console.cloud.google.com](https://console.cloud.google.com/) amb
-   el compte que gestioni el projecte (pot ser el mateix `@xtec.cat` del full).
-2. Crea un projecte nou (o fes servir un que ja tinguis).
-3. **APIs i serveis > Pantalla de consentiment OAuth**:
-   - Tipus d'usuari: **Extern** (imprescindible perquè accepti tots dos
-     dominis; "Intern" només accepta el domini del projecte).
-   - Omple el nom de l'app, correu de suport i de contacte. Desa.
-   - No cal demanar verificació de Google per a aquest ús (un institut, poca
-     gent, cap dada sensible més enllà de l'email) — la primera vegada que
-     algú iniciï sessió veurà un avís "Google no ha verificat aquesta app";
-     fent clic a "Avançat > Anar a [nom de l'app] (no segur)" hi podrà entrar
-     igualment. És normal i esperat, no és un error.
-4. **APIs i serveis > Credencials > Crea credencials > ID de client d'OAuth**:
-   - Tipus d'aplicació: **Aplicació web**.
-   - **Orígens autoritzats de JavaScript**: la URL on publiquis
-     `seguiment-modul.html` (només l'arrel, sense la ruta), per exemple:
-     `https://ins-apelles-mestres.github.io`
-     (aquest repositori ja té GitHub Pages configurat des de la branca
-     `main` — un cop hi fusioneu aquest canvi, l'eina quedarà publicada a
-     `https://ins-apelles-mestres.github.io/treballs-recerca/seguiment-modul.html`).
-   - **Important**: aquest mode NO funciona obrint l'HTML com a fitxer local
-     (`file://`) — Google no accepta aquest origen. Cal servir-lo per web
-     (GitHub Pages, com aquí, o qualsevol altre allotjament).
-5. Desa i copia el **Client ID** (acaba en `.apps.googleusercontent.com`).
-   No és secret, es pot enganxar directament al codi.
-
-### B.2 — Configura i desplega l'Apps Script
-
-1. Obre el full de càlcul a Google Sheets.
-2. Menú **Extensions > Apps Script**.
-3. Esborra el codi d'exemple i enganxa-hi tot el contingut de `Codi.gs`.
-4. Edita:
-   - `SHEET_NAME`: el nom exacte de la pestanya amb les notes.
-   - `TEACHER_EMAILS`: correus del professorat amb accés al tauler complet.
-   - `THRESHOLD`: nota mínima sobre 10 per considerar un RA "assolit".
-   - `CLIENT_ID`: enganxa aquí el Client ID del pas B.1.
-5. Desa. **Desplega > Nova implementació** > tipus **Aplicació web**:
-   - Executa com a: **Jo**.
-   - Qui té accés: **Anyone** (ara la identitat NO ve d'aquest ajust, sinó
-     del testimoni d'inici de sessió amb Google que verifica el codi).
-6. Autoritza els permisos. Copia la URL que acaba en `/exec`.
-
-### B.3 — Configura seguiment-modul.html
-
-Un cop publicat a GitHub Pages, comparteix amb el professorat i l'alumnat un
-enllaç amb la URL de l'script i el Client ID:
+El teu propi enllaç (professorat) és:
 
 ```
-https://ins-apelles-mestres.github.io/treballs-recerca/seguiment-modul.html?api=LA_URL_DE_LEXEC&client_id=EL_CLIENT_ID
+<PAGE_URL>?api=<LA_URL_QUE_ACABA_EN_/exec>&code=<TEACHER_CODE>
 ```
 
-En obrir l'enllaç, la pàgina mostrarà un botó "Inicia sessió amb Google";
-cadascú hi entra amb el seu propi compte (`@xtec.cat` el professorat,
-`@apellesmestres.cat` l'alumnat) i, un cop identificat, es connecta sol.
+## Si un alumne/a encara no té correu al full
+
+`generarCodisAccess` només pot assignar codi (i `enviaEnllacosPersonalitzats`
+només pot enviar correu) a qui tingui un correu detectat: una columna
+"Correu"/"Email" al full de notes, o el seu nom i correu a la pestanya
+"Contacte". Afegeix-los-hi i torna a executar el pas 1 del menú.
 
 ## Cada cop que canviïs el codi de l'Apps Script
 
 Torna a **Desplega > Gestiona implementacions**, edita la implementació
 existent i puja una **versió nova** — si no, els canvis no es veuran.
 
+## Seguretat: on NO ha d'anar el codi real
+
+`TEACHER_CODE` és una contrasenya. El fitxer `Codi.gs` d'aquest
+repositori és només una plantilla de referència (per això hi ha el valor
+d'exemple `CANVIA-AQUEST-CODI-PER-UN-DE-LLARG-I-SECRET`): un cop l'enganxis
+a l'editor d'Apps Script del teu full i hi posis el codi real, **no tornis
+a pujar aquest fitxer amb el valor real a un repositori públic com aquest**.
+L'única còpia que ha de tenir el codi real és la que queda desada dins de
+l'editor d'Apps Script del teu full (privat, lligat al teu compte de Google).
+
 ## Com funciona la identitat
 
-- **Mode A**: l'script fa servir `Session.getActiveUser().getEmail()` — el
-  compte que la persona té iniciat al navegador. Només fiable dins d'un únic
-  domini Workspace.
-- **Mode B**: la pàgina obté un testimoni (ID token) en iniciar sessió amb
-  Google (Google Identity Services) i el passa a l'script, que el verifica
-  contra `oauth2.googleapis.com` (comprova que no ha caducat i que és
-  realment per a la vostra aplicació) abans de confiar-hi.
+- El codi del professorat (`TEACHER_CODE`) dona accés al tauler complet.
+- Cada alumne/a té el seu propi codi (pestanya "Accés"); l'script el busca
+  i, si el troba, retorna només les seves pròpies dades.
+- Un codi que no coincideix amb res retorna un error — mai dades d'altres
+  persones.
 
-En tots dos casos: si el correu és a `TEACHER_EMAILS` i es demana el tauler
-complet, el rep. Si no, l'script busca aquest correu entre l'alumnat del
-full de notes i, si el troba, retorna només les seves pròpies dades. Mai
-s'envien al navegador les dades d'altres persones.
+Com que la protecció és el codi (i no la identitat de Google), tracta cada
+enllaç personal com una contrasenya: si algú el reenvia a algú altre, aquell
+altre podria veure les dades associades. És una protecció més senzilla que
+un inici de sessió real, però suficient per a l'ús normal d'una classe.
