@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguiment del mòdul — Resultats d'aprenentatge</title>
+<script src="js/vendor/xlsx.full.min.js"></script>
+<script src="js/vendor/chart.umd.js"></script>
+<style>
+:root{
+  color-scheme: light dark;
+  --plane:#f9f9f7; --surface:#ffffff; --surface-2:#f3f3f0;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.12);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --ok:#0ca30c; --bad:#d03b3b;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#222220;
+    --text:#ffffff; --text-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.14);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --ok:#0ca30c; --bad:#e66767;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--text);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{margin:0 0 .4em;line-height:1.25}
+h1{font-size:20px}h2{font-size:16px}h3{font-size:13px;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em}
+a{color:var(--s1)}
+button,select,input{font:inherit}
+button{cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);
+  padding:7px 14px;border-radius:8px;transition:background .12s}
+button:hover{background:var(--surface-2)}
+button.primary{background:var(--s1);border-color:var(--s1);color:#fff}
+button.primary:hover{filter:brightness(1.06)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=email],input[type=number],select,textarea{
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  padding:6px 9px;border-radius:7px;width:100%}
+header.top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;box-shadow:var(--shadow)}
+header.top .brand{font-weight:700;font-size:15px;white-space:nowrap}
+header.top .course{color:var(--text-2);font-size:13px}
+header.top .spacer{flex:1}
+.rolebadge{font-size:11px;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--text-2);font-weight:600}
+nav.tabs{display:flex;gap:4px;padding:0 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+nav.tabs button{border:none;border-radius:0;background:transparent;padding:12px 16px;color:var(--text-2);
+  border-bottom:2px solid transparent;font-weight:500}
+nav.tabs button.active{color:var(--text);border-bottom-color:var(--s1)}
+nav.tabs button[hidden]{display:none}
+main{padding:20px;max-width:1280px;margin:0 auto}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:16px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.stat .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .l{color:var(--muted);font-size:12px;margin-top:2px}
+.chartbox{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.chartbox canvas{max-width:100%}
+.row2{grid-template-columns:1fr 1fr}
+@media(max-width:880px){.row2{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--grid)}
+th{color:var(--text-2);font-weight:600;cursor:pointer;white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.pill.nd{background:var(--surface-2);color:var(--muted)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar .grow{flex:1;min-width:180px}
+.hint{color:var(--muted);font-size:12px}
+.dropzone{border:2px dashed var(--axis);border-radius:14px;padding:44px;text-align:center;background:var(--surface);cursor:pointer}
+.dropzone.drag{border-color:var(--s1);background:color-mix(in srgb,var(--s1) 8%,var(--surface))}
+.heat td{text-align:center;font-variant-numeric:tabular-nums;border:1px solid var(--surface);padding:5px 6px;font-size:12px}
+.heat th{font-size:11px}
+.heat th.sn{text-align:left;position:sticky;left:0;background:var(--surface);z-index:2}
+.heat td.sn{text-align:left;position:sticky;left:0;background:var(--surface);font-weight:600;z-index:1}
+.notice{background:color-mix(in srgb,var(--s4) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--s4) 40%,transparent);
+  padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.warn{background:color-mix(in srgb,var(--bad) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);
+  padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:640px;margin:18px 0}
+@media(max-width:640px){.roles{grid-template-columns:1fr}}
+.rolecard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:left;cursor:pointer}
+.rolecard:hover{border-color:var(--s1)}
+.rolecard h3{margin-top:0;color:var(--text);text-transform:none;font-size:15px}
+.login{max-width:380px;margin:30px auto;text-align:center}
+.login .card{text-align:left}
+.foot{color:var(--muted);font-size:12px;margin-top:30px;text-align:center}
+.tag{display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:11px;color:var(--text-2)}
+.ralabel{font-weight:600}
+.raweight{color:var(--muted);font-size:11px}
+.incident{border-left:3px solid var(--border);padding:6px 10px;margin-bottom:6px;border-radius:4px;background:var(--surface-2)}
+.incident.pos{border-left-color:var(--ok)}
+.incident.neg{border-left-color:var(--bad)}
+.linktable input[type=number]{width:64px}
+.big{font-size:34px;font-weight:700}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">📋 Seguiment del mòdul</span>
+  <span class="course" id="courseLabel">Cap fitxer importat</span>
+  <span class="rolebadge" id="roleBadge" hidden></span>
+  <span class="spacer"></span>
+  <button id="btnReimport" hidden>Importar un altre fitxer</button>
+  <button id="btnReset" title="Esborra dades i configuració desades">Reiniciar</button>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-v="import" class="active">Importació</button>
+  <button data-v="dash" hidden>Tauler</button>
+  <button data-v="ra" hidden>Resultats d'aprenentatge</button>
+  <button data-v="config" hidden>Configuració</button>
+  <button data-v="myview" hidden>El meu seguiment</button>
+</nav>
+<main>
+
+<!-- IMPORT -->
+<section class="view active" id="v-import">
+  <div id="rolePick">
+    <h1>Qui ets?</h1>
+    <p class="hint">Aquesta eina funciona <b>al teu navegador</b>: les dades del full de càlcul no s'envien a cap servidor.</p>
+    <div class="roles">
+      <div class="rolecard" id="pickTeacher">
+        <h3>👩‍🏫 Professor/a</h3>
+        <p class="hint">Importa el llibre d'avaluació complet, consulta el tauler de classe i els resultats d'aprenentatge de tot l'alumnat. Les dades es desen al navegador perquè no calgui reimportar cada cop.</p>
+      </div>
+      <div class="rolecard" id="pickStudent">
+        <h3>🎓 Alumne/a</h3>
+        <p class="hint">Importa el mateix fitxer que t'ha facilitat el/la professor/a i, en entrar el teu correu, veuràs només el teu propi seguiment. No es desa res al dispositiu en tancar la pàgina.</p>
+      </div>
+    </div>
+  </div>
+  <div id="importArea" hidden>
+    <h1>Importació del llibre d'avaluació</h1>
+    <p class="hint">Importa el fitxer <b>.xlsx</b> del mòdul (pestanyes tipus «AVALUACIÓ»/«RESUM RAs», i opcionalment Assistència, Compromís i professionalitat, Material i Incidències).</p>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+      <p style="font-size:16px;margin:0 0 6px"><b>Arrossega el fitxer aquí</b> o fes clic per seleccionar-lo</p>
+    </div>
+    <div id="sheetPickWrap" style="margin-top:14px" hidden>
+      <label>S'han trobat diverses pestanyes amb estructura de RA. Quina vols fer servir?
+        <select id="sheetPick"></select></label>
+      <button id="sheetPickApply" class="primary" style="margin-top:8px">Utilitza aquesta pestanya</button>
+    </div>
+    <div id="importSummary" style="margin-top:18px"></div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="view" id="v-dash">
+  <h1>Tauler de classe</h1>
+  <div class="grid cards" id="kpis" style="margin-bottom:16px"></div>
+  <div class="grid row2" style="margin-bottom:16px">
+    <div class="chartbox"><h3>Mitjana de classe per RA (sobre 10)</h3><canvas id="chRa" height="220"></canvas></div>
+    <div class="chartbox"><h3>Assoliment del mòdul (global)</h3><canvas id="chDist" height="220"></canvas></div>
+  </div>
+  <div class="chartbox" style="margin-bottom:16px"><h3>Rànquing per nota global (sobre 10)</h3><canvas id="chRank" height="420"></canvas></div>
+
+  <h2 style="margin-top:26px">Llistat de l'alumnat</h2>
+  <div class="toolbar">
+    <input class="grow" type="text" id="dashSearch" placeholder="Cerca per nom o cognoms…">
+    <select id="dashLevel"><option value="">Tots</option><option value="ok">Assolit</option><option value="bad">No assolit</option></select>
+    <button id="dashExportCsv">Exporta taula (CSV)</button>
+  </div>
+  <div class="tablewrap"><table id="dashTable"></table></div>
+
+  <h2 style="margin-top:26px">Mapa de calor — alumnat &times; RA (nota sobre 10)</h2>
+  <div class="tablewrap"><table class="heat" id="heatTable"></table></div>
+</section>
+
+<!-- RA -->
+<section class="view" id="v-ra">
+  <h1>Resultats d'aprenentatge</h1>
+  <p class="hint">Nota calculada per l'excel a partir dels percentatges de cada activitat. «Assolit» = nota ≥ llindar (configurable a Configuració).</p>
+  <div class="tablewrap" id="raDefTable" style="margin-bottom:18px"></div>
+  <div class="toolbar">
+    <button id="raExportCsv">Exporta la taula (CSV)</button>
+  </div>
+  <div class="tablewrap"><table id="raTable"></table></div>
+  <div class="chartbox" style="margin-top:18px"><h3>Assoliment per RA (nombre d'alumnes)</h3><canvas id="chRaDist" height="240"></canvas></div>
+</section>
+
+<!-- CONFIG -->
+<section class="view" id="v-config">
+  <h1>Configuració</h1>
+  <div class="card" style="margin-bottom:18px">
+    <h2>Dades generals</h2>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
+      <label style="flex:1;min-width:220px">Nom del mòdul (per a les pantalles)
+        <input type="text" id="subjectInput"></label>
+      <label style="width:160px">Llindar d'assoliment (/10)
+        <input type="number" id="thInput" min="0" max="10" step="0.1"></label>
+      <button id="cfgSave" class="primary">Desa</button>
+    </div>
+    <label style="display:block;margin-top:12px"><input type="checkbox" id="optShowClass" style="width:auto;margin-right:6px">Mostrar la mitjana de la classe a la vista de l'alumnat</label>
+  </div>
+  <div class="card" style="margin-bottom:18px" id="sheetInfoCard">
+    <h2>Pestanya de notes utilitzada</h2>
+    <div id="sheetInfoBox"></div>
+  </div>
+  <div class="card">
+    <h2>Vincles amb altres pestanyes</h2>
+    <p class="hint">L'alumnat d'Assistència, Compromís i professionalitat i Material es vincula automàticament (per ordre de fila o pel nom). Revisa i corregeix aquí si cal (número de fila de dades a la pestanya corresponent, començant per 1).</p>
+    <div class="tablewrap"><table class="linktable" id="linkTable"></table></div>
+  </div>
+</section>
+
+<!-- MY VIEW -->
+<section class="view" id="v-myview">
+  <div id="teacherPicker" hidden>
+    <h1>El meu seguiment — previsualització</h1>
+    <label>Tria un alumne/a:
+      <select id="previewSelect"></select></label>
+  </div>
+  <div id="studentLogin" class="login" hidden>
+    <h1>El meu seguiment</h1>
+    <div class="card">
+      <p>Introdueix el teu correu electrònic per veure el teu propi seguiment.</p>
+      <input type="email" id="loginEmail" placeholder="nom.cognom@institut.cat">
+      <button class="primary" id="loginBtn" style="margin-top:10px;width:100%">Entra</button>
+      <p class="hint" id="loginMsg" style="margin-top:8px"></p>
+    </div>
+  </div>
+  <div id="myContent"></div>
+</section>
+
+<div class="foot">Eina local · les dades es processen només al teu navegador</div>
+</main>
+
+<script>
+"use strict";
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const cssv=n=>getComputedStyle(document.body).getPropertyValue(n).trim();
+const ZW_RE=new RegExp("["+[0x200b,0x200c,0x200d,0xfeff].map(c=>String.fromCharCode(c)).join("")+"]","g");
+const clean=s=>String(s==null?"":s).replace(ZW_RE,"").replace(/\s+/g," ").trim();
+function toNum(v){
+  if(v==null||v==="") return null;
+  if(typeof v==="number") return isFinite(v)?v:null;
+  if(v instanceof Date) return null;
+  const s=String(v).trim();
+  if(/^#/.test(s)) return null;
+  const pm=s.match(/(-?[\d.,]+)\s*%/);
+  if(pm){ const n=parseFloat(pm[1].replace(",",".")); return isNaN(n)?null:n/100; }
+  const n=parseFloat(s.replace(",","."));
+  return isNaN(n)?null:n;
+}
+function fmt1(x){ return x==null||isNaN(x)?"—":x.toFixed(1); }
+const DIACRITIC_RE=new RegExp("["+String.fromCharCode(0x0300)+"-"+String.fromCharCode(0x036f)+"]","g");
+function normName(s){ return String(s||"").normalize("NFD").replace(DIACRITIC_RE,"").toLowerCase().replace(/\s+/g," ").trim(); }
+function nameTokens(s){ return normName(s).split(" ").filter(Boolean); }
+function namesMatch(a,b){
+  const ta=new Set(nameTokens(a)), tb=nameTokens(b);
+  if(!ta.size||!tb.length) return false;
+  let hit=0; tb.forEach(t=>{ if(ta.has(t)) hit++; });
+  return hit>=Math.min(ta.size,tb.length) && hit/Math.max(ta.size,tb.length)>=0.5;
+}
+function fmtDate(v){
+  if(v instanceof Date && !isNaN(v)) return v.toLocaleDateString("ca-ES");
+  return v==null?"":String(v);
+}
+
+let STATE=null, ROLE=null, CHARTS={}, sortKey="global", sortDir=-1, myIdx=null, lastAb=null;
+
+/* ============ PARSING ============ */
+function findRaTitleRow(rows){
+  for(let r=0;r<Math.min(rows.length,60);r++){
+    const row=rows[r]||[]; let hasRA=false, hasTotal=false;
+    row.forEach(c=>{ const t=clean(c); if(/^ra\s*\d/i.test(t)) hasRA=true; if(/^total/i.test(t)) hasTotal=true; });
+    if(hasRA && hasTotal) return r;
+  }
+  return -1;
+}
+function parseRaSheet(rows, titleRowIdx){
+  const titleRow=rows[titleRowIdx]||[], tasksRow=rows[titleRowIdx+1]||[], weightsRow=rows[titleRowIdx+3]||[];
+  const dataStart=titleRowIdx+4;
+  const ncols=Math.max(titleRow.length,tasksRow.length,weightsRow.length);
+  let raGroups=[], current=null, globalCol=null, recoveryCol=null, obsCol=null, emailCol=null, seenFirstRA=false;
+  for(let c=2;c<ncols;c++){
+    const t=clean(titleRow[c]);
+    if(/^ra\s*\d/i.test(t)){
+      seenFirstRA=true;
+      if(current) raGroups.push(current);
+      const codeMatch=t.match(/^ra\s*\d+/i);
+      current={id:"RA"+(raGroups.length+1),code:(codeMatch?codeMatch[0].replace(/\s+/g,""):"RA"+(raGroups.length+1)).toUpperCase(),label:t,tasks:[],totalCol:null};
+    } else if(current && /total/i.test(t)){
+      current.totalCol=c; raGroups.push(current); current=null; continue;
+    } else if(!current && seenFirstRA && /^total\b/i.test(t) && !/ra/i.test(t)){ globalCol=c; continue; }
+    else if(/recuperar/i.test(t)){ recoveryCol=c; continue; }
+    else if(/observ/i.test(t)){ obsCol=c; continue; }
+    else if(!seenFirstRA){
+      const lbl=clean(titleRow[c])||clean(tasksRow[c])||clean(weightsRow[c]);
+      if(/correu|email/i.test(lbl)) emailCol=c;
+    }
+    if(current){ const tn=clean(tasksRow[c]); if(tn) current.tasks.push({name:tn,weight:toNum(weightsRow[c]),col:c}); }
+  }
+  const students=[];
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[];
+    const cognoms=clean(row[0]), nom=clean(row[1]);
+    if(!cognoms && !nom) continue;
+    const st={idx:students.length,cognoms,nom,fullName:(nom+" "+cognoms).trim(),
+      email: emailCol!=null? clean(row[emailCol]).toLowerCase() : "",
+      raScore:{}, taskVals:{}};
+    raGroups.forEach(g=>{
+      st.taskVals[g.id]=g.tasks.map(tk=>toNum(row[tk.col]));
+      st.raScore[g.id]= g.totalCol!=null? toNum(row[g.totalCol]) : null;
+    });
+    st.global = globalCol!=null? toNum(row[globalCol]) : null;
+    st.recovery = recoveryCol!=null? clean(row[recoveryCol]) : "";
+    st.observations = obsCol!=null? clean(row[obsCol]) : "";
+    students.push(st);
+  }
+  return {raGroups, globalCol, recoveryCol, obsCol, emailCol, students};
+}
+function findRow(rows,test){ for(let r=0;r<rows.length;r++){ if(test(rows[r]||[])) return r; } return -1; }
+
+function parseAssistencia(rows){
+  const hdr=findRow(rows,row=>row.some(c=>/total\s*absentisme/i.test(clean(c))));
+  if(hdr<0) return null;
+  let absCol=null,perduaCol=null;
+  (rows[hdr]||[]).forEach((c,i)=>{ const t=clean(c); if(/total\s*absentisme/i.test(t)) absCol=i; if(/p[eè]rdua/i.test(t)) perduaCol=i; });
+  const dataStart=hdr+3, list=[];
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[]; if(row[0]==null||row[0]==="") continue;
+    list.push({absences: absCol!=null?(toNum(row[absCol])||0):null, lost: perduaCol!=null? /^s[ií]$/i.test(clean(row[perduaCol])) : false});
+  }
+  return list;
+}
+function parseCompromis(rows){
+  const hdr=findRow(rows,row=>{ const t=row.map(clean); return t.some(x=>/^bon$/i.test(x)) && t.some(x=>/^millorar$/i.test(x)) && t.some(x=>/^sense$/i.test(x)); });
+  if(hdr<0) return null;
+  let bonCol,millCol,senseCol,compCol,assistCol,totCol;
+  (rows[hdr]||[]).forEach((v,i)=>{ const t=clean(v);
+    if(/^bon$/i.test(t)) bonCol=i; else if(/^millorar$/i.test(t)) millCol=i; else if(/^sense$/i.test(t)) senseCol=i;
+    else if(/^compromís/i.test(t)) compCol=i; else if(/^assist[eè]ncia$/i.test(t)) assistCol=i; else if(/^total$/i.test(t)) totCol=i; });
+  const dataStart=hdr+2, list=[];
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[]; const nom=clean(row[1]);
+    if(row[0]==null||row[0]==="") continue;
+    list.push({nom, bon:toNum(row[bonCol]), millorar:toNum(row[millCol]), sense:toNum(row[senseCol]),
+      compromisScore:toNum(row[compCol]), assistenciaScore:toNum(row[assistCol]), total:toNum(row[totCol])});
+  }
+  return list;
+}
+function parseMaterial(rows){
+  const hdr=findRow(rows,row=>row.some(v=>/^mitjana$/i.test(clean(v))));
+  if(hdr<0) return null;
+  let mitjanaCol=null;
+  (rows[hdr]||[]).forEach((v,i)=>{ if(/^mitjana$/i.test(clean(v))) mitjanaCol=i; });
+  const dataStart=hdr+2, list=[];
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[]; const nom=clean(row[0]);
+    if(!nom) continue;
+    list.push({nom, mitjana: mitjanaCol!=null? toNum(row[mitjanaCol]) : null});
+  }
+  return list;
+}
+function parseIncidencies(rows){
+  const hdr=findRow(rows,row=>row.some(v=>/nom.*alumne/i.test(clean(v))));
+  if(hdr<0) return null;
+  let dateCol,nameCol,posCol,negCol,reasonCol,typeCol;
+  (rows[hdr]||[]).forEach((v,i)=>{ const t=clean(v);
+    if(/^data/i.test(t)) dateCol=i; else if(/nom.*alumne/i.test(t)) nameCol=i;
+    else if(/positiva/i.test(t)) posCol=i; else if(/negativa/i.test(t)) negCol=i;
+    else if(/motiu/i.test(t)) reasonCol=i; else if(/tipus/i.test(t)) typeCol=i; });
+  const dataStart=hdr+1, list=[];
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[]; const name=clean(row[nameCol]);
+    if(!name) continue;
+    list.push({name, date:row[dateCol], positive:!!toNum(row[posCol]), negative:!!toNum(row[negCol]),
+      reason:clean(row[reasonCol]), type:clean(row[typeCol])});
+  }
+  return list;
+}
+function parseContacte(rows){
+  const hdr=findRow(rows,row=>row.some(v=>/^alumne\/a$/i.test(clean(v))));
+  if(hdr<0) return null;
+  let nameCol=null,emailCol=null;
+  (rows[hdr]||[]).forEach((v,i)=>{ const t=clean(v); if(/^alumne\/a$/i.test(t)) nameCol=i; if(/adre[çc]a electr[oò]nica alumne/i.test(t)) emailCol=i; });
+  if(emailCol==null) return null;
+  const dataStart=hdr+1, map={};
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[]; const name=clean(row[nameCol]), email=clean(row[emailCol]);
+    if(name && email) map[normName(name)]=email.toLowerCase();
+  }
+  return map;
+}
+
+function sheetRows(wb,name){ return XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null}); }
+
+function analyzeWorkbook(wb){
+  const candidates=[];
+  wb.SheetNames.forEach(name=>{
+    const rows=sheetRows(wb,name);
+    const tr=findRaTitleRow(rows);
+    if(tr<0) return;
+    const parsed=parseRaSheet(rows,tr);
+    candidates.push({name, titleRowIdx:tr, nStudents:parsed.students.length});
+  });
+  return candidates;
+}
+
+function parseWorkbook(ab, chosenSheetName){
+  const wb=XLSX.read(ab,{type:"array",cellDates:true});
+  const candidates=analyzeWorkbook(wb);
+  if(!candidates.length) throw new Error("No s'ha trobat cap pestanya amb estructura de RA (files amb «RA 1», «RA 2»… i columnes «TOTAL RA»).");
+  let chosen = chosenSheetName? candidates.find(c=>c.name===chosenSheetName) : null;
+  if(!chosen) chosen = candidates.slice().sort((a,b)=>b.nStudents-a.nStudents)[0];
+  const rows=sheetRows(wb,chosen.name);
+  const ra=parseRaSheet(rows,chosen.titleRowIdx);
+  if(!ra.students.length) throw new Error("La pestanya «"+chosen.name+"» no té cap alumne/a amb dades.");
+
+  let titleCell="";
+  for(let r=0;r<3;r++){ const v=clean((rows[r]||[])[0]); if(v){ titleCell=v; break; } }
+
+  const attendance = wb.SheetNames.includes("Assistència")? parseAssistencia(sheetRows(wb,"Assistència")) : null;
+  const compromis = wb.SheetNames.includes("Compromís i professionalitat")? parseCompromis(sheetRows(wb,"Compromís i professionalitat")) : null;
+  const material = wb.SheetNames.includes("Material")? parseMaterial(sheetRows(wb,"Material")) : null;
+  const incidents = wb.SheetNames.includes("Incidències")? parseIncidencies(sheetRows(wb,"Incidències")) : null;
+  const contacteMap = wb.SheetNames.includes("Contacte")? parseContacte(sheetRows(wb,"Contacte")) : null;
+
+  function bestNameIndex(list, fullName, nom){
+    if(!list) return -1;
+    let exact=-1, ambiguous=false;
+    list.forEach((it,i)=>{ if(it.nom && normName(it.nom)===normName(nom)){ if(exact>=0) ambiguous=true; exact=i; } });
+    if(exact>=0 && !ambiguous) return exact;
+    return -1;
+  }
+
+  ra.students.forEach((s,i)=>{
+    s.attIdx = attendance && attendance[i] ? i : -1;
+    s.matIdx = material ? bestNameIndex(material, s.fullName, s.nom) : -1;
+    if(s.matIdx<0 && material && material[i]) s.matIdx=i;
+    s.compIdx = compromis ? bestNameIndex(compromis, s.fullName, s.nom) : -1;
+    if(s.compIdx<0 && compromis && compromis[i]) s.compIdx=i;
+    if(!s.email && contacteMap){
+      const key=Object.keys(contacteMap).find(k=>namesMatch(k,s.fullName));
+      if(key) s.email=contacteMap[key];
+    }
+    s.incidents = incidents? incidents.filter(inc=>namesMatch(inc.name,s.fullName)) : [];
+  });
+
+  return {
+    courseName: titleCell || chosen.name,
+    sheetUsed: chosen.name,
+    candidates,
+    raGroups: ra.raGroups,
+    recoveryPresent: ra.recoveryCol!=null,
+    obsPresent: ra.obsCol!=null,
+    emailPresent: ra.emailCol!=null,
+    students: ra.students,
+    attendance, compromis, material, incidents,
+  };
+}
+
+/* ============ STATE / PERSISTENCE ============ */
+function storeKey(){ return "seguimentra:"+(STATE?STATE.courseName:"default"); }
+function saveState(){
+  if(!STATE || ROLE!=="teacher") return;
+  const cfg={subject:STATE.subject, threshold:STATE.threshold, sheetUsed:STATE.sheetUsed,
+    showClassAvg:STATE.showClassAvg, linkOverrides:STATE.linkOverrides};
+  try{ localStorage.setItem(storeKey(), JSON.stringify(cfg)); localStorage.setItem("seguimentra:last", storeKey()); }catch(e){}
+}
+function loadSavedConfig(courseName){
+  try{ return JSON.parse(localStorage.getItem("seguimentra:"+courseName)); }catch(e){ return null; }
+}
+function loadLast(){
+  if(ROLE!=="teacher") return false;
+  try{
+    const k=localStorage.getItem("seguimentra:last");
+    if(!k) return false;
+    const bytesKey="seguimentra:lastfile";
+    const ab64=localStorage.getItem(bytesKey);
+    if(!ab64) return false;
+    const bin=atob(ab64); const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const raw=parseWorkbook(bytes.buffer);
+    const cfg=loadSavedConfig(raw.courseName);
+    buildState(raw,cfg);
+    refreshAll(); show("dash");
+    return true;
+  }catch(e){ return false; }
+}
+function buildState(raw,cfg){
+  STATE=raw;
+  STATE.subject = (cfg&&cfg.subject) || raw.courseName;
+  STATE.threshold = (cfg&&cfg.threshold!=null)? cfg.threshold : 5;
+  STATE.showClassAvg = cfg? !!cfg.showClassAvg : false;
+  STATE.linkOverrides = (cfg&&cfg.linkOverrides) || {};
+  if(cfg && cfg.sheetUsed && cfg.sheetUsed!==raw.sheetUsed){ /* user may re-pick later */ }
+  applyOverrides();
+  recompute();
+}
+function applyOverrides(){
+  STATE.students.forEach(s=>{
+    const o=STATE.linkOverrides[s.email||s.fullName];
+    if(!o) return;
+    if(o.att!=null) s.attIdx = o.att>0? o.att-1 : -1;
+    if(o.mat!=null) s.matIdx = o.mat>0? o.mat-1 : -1;
+    if(o.comp!=null) s.compIdx = o.comp>0? o.comp-1 : -1;
+  });
+}
+
+/* ============ COMPUTATION ============ */
+function recompute(){
+  const th=STATE.threshold;
+  STATE.students.forEach(s=>{
+    const vals=STATE.raGroups.map(g=>s.raScore[g.id]).filter(v=>v!=null);
+    s.globalEff = s.global!=null? s.global : (vals.length? vals.reduce((a,b)=>a+b,0)/vals.length : null);
+    s.globalIsFallback = s.global==null && vals.length>0;
+    s.assolit = s.globalEff!=null? s.globalEff>=th : null;
+    s.attendance = (STATE.attendance && s.attIdx>=0)? STATE.attendance[s.attIdx] : null;
+    s.material = (STATE.material && s.matIdx>=0)? STATE.material[s.matIdx] : null;
+    s.compromis = (STATE.compromis && s.compIdx>=0)? STATE.compromis[s.compIdx] : null;
+  });
+  STATE.classRaAvg={};
+  STATE.raGroups.forEach(g=>{
+    const vs=STATE.students.map(s=>s.raScore[g.id]).filter(v=>v!=null);
+    STATE.classRaAvg[g.id]= vs.length? vs.reduce((a,b)=>a+b,0)/vs.length : null;
+  });
+  const gv=STATE.students.map(s=>s.globalEff).filter(v=>v!=null);
+  STATE.classGlobal = gv.length? gv.reduce((a,b)=>a+b,0)/gv.length : null;
+}
+
+/* ============ RENDERING ============ */
+function show(v){
+  $$("#tabs button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));
+  $$(".view").forEach(s=>s.classList.toggle("active",s.id==="v-"+v));
+  if(v==="dash") renderDash();
+  if(v==="ra") renderRa();
+  if(v==="config") renderConfig();
+  if(v==="myview") renderMyViewTab();
+}
+function destroyChart(k){ if(CHARTS[k]){ CHARTS[k].destroy(); delete CHARTS[k]; } }
+const CHART_BASE=()=>({responsive:true,maintainAspectRatio:true,
+  plugins:{legend:{labels:{color:cssv("--text-2"),font:{size:12}}}},
+  scales:{x:{ticks:{color:cssv("--muted"),font:{size:11}},grid:{color:cssv("--grid")}},
+          y:{ticks:{color:cssv("--muted"),font:{size:11}},grid:{color:cssv("--grid")}}}});
+
+function refreshAll(){
+  $("#courseLabel").textContent=STATE.subject+" · "+STATE.students.length+" alumnes · "+STATE.raGroups.length+" RA · pestanya «"+STATE.sheetUsed+"»";
+  $("#roleBadge").hidden=false;
+  $("#roleBadge").textContent = ROLE==="teacher"?"Mode professor/a":"Mode alumnat";
+  $("#btnReimport").hidden=false;
+  renderImportSummary();
+  if(ROLE==="teacher"){ $$('nav.tabs button[data-v="dash"],nav.tabs button[data-v="ra"],nav.tabs button[data-v="config"],nav.tabs button[data-v="myview"]').forEach(b=>b.hidden=false); }
+  else { $$('nav.tabs button[data-v="dash"],nav.tabs button[data-v="ra"],nav.tabs button[data-v="config"]').forEach(b=>b.hidden=true); $('nav.tabs button[data-v="myview"]').hidden=false; }
+}
+
+function renderImportSummary(){
+  const el=$("#importSummary"); if(!STATE){ el.innerHTML=""; return; }
+  const warn = STATE.candidates.length>1 ? `<div class="notice">S'han trobat ${STATE.candidates.length} pestanyes amb estructura de RA. S'ha triat «${esc(STATE.sheetUsed)}» (${STATE.students.length} alumnes amb dades). Pots canviar-ho a dalt.</div>` : "";
+  const missing=[];
+  if(!STATE.attendance) missing.push("Assistència");
+  if(!STATE.compromis) missing.push("Compromís i professionalitat");
+  if(!STATE.material) missing.push("Material");
+  if(!STATE.incidents) missing.push("Incidències");
+  const missWarn = missing.length? `<p class="hint">Pestanyes no trobades (s'ometen): ${missing.join(", ")}.</p>` : "";
+  const emailWarn = !STATE.students.some(s=>s.email) ? `<div class="notice">Cap alumne/a té un correu detectat (columna «Correu»/«Email» al full de notes, o pestanya «Contacte»). L'accés per correu de l'alumnat no funcionarà fins que n'hi hagi.</div>` : "";
+  el.innerHTML = warn + `
+   <div class="grid cards">
+     <div class="card stat"><div class="v">${STATE.students.length}</div><div class="l">alumnes</div></div>
+     <div class="card stat"><div class="v">${STATE.raGroups.length}</div><div class="l">resultats d'aprenentatge</div></div>
+     <div class="card stat"><div class="v">${fmt1(STATE.classGlobal)}</div><div class="l">mitjana de classe /10</div></div>
+   </div>
+   <p style="margin-top:14px"><b>RA detectats:</b></p>
+   <ol class="hint">${STATE.raGroups.map(g=>`<li><b>${esc(g.code)}</b> — ${esc(g.label)} <span class="tag">${g.tasks.length} activitats</span></li>`).join("")}</ol>
+   ${missWarn}${emailWarn}
+   <p style="margin-top:12px">${ROLE==="teacher"? "Ves al <b>Tauler</b> o als <b>Resultats d'aprenentatge</b>." : "Ves a <b>El meu seguiment</b> i introdueix el teu correu."}</p>`;
+}
+
+/* ---- DASH ---- */
+function renderKpis(){
+  const n=STATE.students.length, ok=STATE.students.filter(s=>s.assolit===true).length;
+  const risk=STATE.students.filter(s=>s.globalEff!=null && s.globalEff<STATE.threshold-1.5).length;
+  const lost=STATE.students.filter(s=>s.attendance && s.attendance.lost).length;
+  const k=[["Mitjana de classe",fmt1(STATE.classGlobal)],
+    ["% d'assoliment", n? Math.round(ok/n*100)+"%":"—"],
+    ["Alumnat en risc (nota molt baixa)",risk],
+    ["Pèrdua de convocatòria",lost]];
+  $("#kpis").innerHTML=k.map(([l,v])=>`<div class="card stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+}
+function renderDash(){
+  renderKpis();
+  destroyChart("ra");
+  CHARTS.ra=new Chart($("#chRa"),{type:"bar",data:{labels:STATE.raGroups.map(g=>g.code),
+    datasets:[{label:"Mitjana classe",data:STATE.raGroups.map(g=>STATE.classRaAvg[g.id]==null?0:STATE.classRaAvg[g.id]),backgroundColor:cssv("--s1"),borderRadius:4}]},
+    options:{...CHART_BASE(),plugins:{legend:{display:false}},scales:{y:{...CHART_BASE().scales.y,min:0,max:10,beginAtZero:true}}}});
+  const ok=STATE.students.filter(s=>s.assolit===true).length, bad=STATE.students.filter(s=>s.assolit===false).length, nd=STATE.students.filter(s=>s.assolit==null).length;
+  destroyChart("dist");
+  CHARTS.dist=new Chart($("#chDist"),{type:"doughnut",data:{labels:["Assolit","No assolit","Sense dades"],
+    datasets:[{data:[ok,bad,nd],backgroundColor:[cssv("--ok"),cssv("--bad"),cssv("--muted")]}]},
+    options:{plugins:{legend:{position:"bottom",labels:{color:cssv("--text-2")}}}}});
+  const rk=[...STATE.students].sort((a,b)=>(b.globalEff??-1)-(a.globalEff??-1));
+  destroyChart("rank");
+  CHARTS.rank=new Chart($("#chRank"),{type:"bar",data:{labels:rk.map(s=>s.fullName),
+    datasets:[{label:"Nota global",data:rk.map(s=>s.globalEff==null?0:s.globalEff),
+      backgroundColor:rk.map(s=>s.assolit==null?cssv("--muted"):s.assolit?cssv("--ok"):cssv("--bad")),borderRadius:4}]},
+    options:{...CHART_BASE(),indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{...CHART_BASE().scales.x,min:0,max:10,beginAtZero:true}}}});
+  renderDashTable(); renderHeat();
+}
+function sortRows(rows){
+  return rows.sort((a,b)=>{
+    if(sortKey==="fullName") return sortDir*a.fullName.localeCompare(b.fullName);
+    let x=a[sortKey], y=b[sortKey]; x=x==null?-Infinity:x; y=y==null?-Infinity:y;
+    return sortDir*((x>y)-(x<y));
+  });
+}
+function renderDashTable(){
+  const q=($("#dashSearch").value||"").toLowerCase(), lv=$("#dashLevel").value;
+  let rows=STATE.students.filter(s=>s.fullName.toLowerCase().includes(q) && (!lv || (lv==="ok"?s.assolit===true:s.assolit===false)));
+  rows=sortRows(rows);
+  const cols=[["fullName","Alumne/a"],["globalEff","Global"],...STATE.raGroups.map(g=>[g.id,g.code]),["material","Material"]];
+  $("#dashTable").innerHTML=`<thead><tr>${cols.map(([k,l])=>`<th data-k="${k}" class="${k==="fullName"?"":"num"}">${l}${sortKey===k?(sortDir<0?" ▼":" ▲"):""}</th>`).join("")}<th>Assoliment</th></tr></thead>
+   <tbody>${rows.map(s=>`<tr><td>${esc(s.fullName)}</td><td class="num">${fmt1(s.globalEff)}</td>${
+     STATE.raGroups.map(g=>`<td class="num">${fmt1(s.raScore[g.id])}</td>`).join("")
+   }<td class="num">${s.material&&s.material.mitjana!=null?fmt1(s.material.mitjana):"—"}</td>
+   <td>${s.assolit==null?`<span class="pill nd">n/d</span>`:s.assolit?`<span class="pill ok">Assolit</span>`:`<span class="pill bad">No assolit</span>`}</td></tr>`).join("")}</tbody>`;
+  $$("#dashTable th").forEach(th=>th.onclick=()=>{ const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else{sortKey=k;sortDir=k==="fullName"?1:-1;} renderDashTable(); });
+}
+const BLUE=["#e8f1fd","#cde2fb","#9ec5f4","#6da7ec","#3987e5","#256abf","#184f95","#0d366b"];
+function heatColor(p){ if(p==null) return "transparent"; const i=Math.min(BLUE.length-1,Math.max(0,Math.floor(p/10*BLUE.length))); return BLUE[i]; }
+function renderHeat(){
+  const hdr=STATE.raGroups.map(g=>`<th title="${esc(g.label)}">${esc(g.code)}</th>`).join("");
+  const rows=[...STATE.students].sort((a,b)=>a.cognoms.localeCompare(b.cognoms)).map(s=>{
+    const cells=STATE.raGroups.map(g=>{ const v=s.raScore[g.id]; const bg=heatColor(v); const dark=v!=null&&v>=5;
+      return `<td style="background:${bg};color:${v==null?"var(--muted)":(dark?"#fff":"#0b0b0b")}">${v==null?"·":v.toFixed(1)}</td>`; }).join("");
+    return `<tr><td class="sn">${esc(s.fullName)}</td>${cells}<td style="font-weight:700">${fmt1(s.globalEff)}</td></tr>`;
+  }).join("");
+  $("#heatTable").innerHTML=`<thead><tr><th class="sn">Alumne/a</th>${hdr}<th>Global</th></tr></thead><tbody>${rows}</tbody>`;
+}
+function dl(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),2000); }
+$("#dashSearch").oninput=renderDashTable; $("#dashLevel").onchange=renderDashTable;
+$("#dashExportCsv").onclick=()=>{
+  const h=["Cognoms","Nom","Global",...STATE.raGroups.map(g=>g.code),"Material","Assoliment"];
+  const rows=STATE.students.map(s=>[s.cognoms,s.nom,s.globalEff==null?"":s.globalEff.toFixed(2),
+    ...STATE.raGroups.map(g=>s.raScore[g.id]==null?"":s.raScore[g.id].toFixed(2)),
+    s.material&&s.material.mitjana!=null?s.material.mitjana.toFixed(2):"", s.assolit==null?"":(s.assolit?"Assolit":"No assolit")]);
+  const csv=[h,...rows].map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n");
+  dl(new Blob(["﻿"+csv],{type:"text/csv"}),"qualificacions_ra.csv");
+};
+
+/* ---- RA TAB ---- */
+function renderRa(){
+  $("#raDefTable").innerHTML=`<table><thead><tr><th>RA</th><th>Descripció</th><th>Activitats (pes)</th></tr></thead><tbody>${
+    STATE.raGroups.map(g=>`<tr><td><span class="ralabel">${esc(g.code)}</span></td><td>${esc(g.label)}</td>
+      <td>${g.tasks.map(t=>`<span class="tag">${esc(t.name)} <span class="raweight">${t.weight!=null?Math.round(t.weight*100)+"%":""}</span></span>`).join(" ")}</td></tr>`).join("")
+  }</tbody></table>`;
+  const rows=[...STATE.students].sort((a,b)=>a.cognoms.localeCompare(b.cognoms));
+  $("#raTable").innerHTML=`<thead><tr><th>Alumne/a</th>${STATE.raGroups.map(g=>`<th title="${esc(g.label)}">${esc(g.code)}</th>`).join("")}<th>Global</th></tr></thead>
+   <tbody>${rows.map(s=>`<tr><td>${esc(s.fullName)}</td>${STATE.raGroups.map(g=>{ const v=s.raScore[g.id];
+      return `<td>${v==null?`<span class="pill nd">n/d</span>`:`<span class="pill ${v>=STATE.threshold?"ok":"bad"}">${v.toFixed(1)}</span>`}</td>`; }).join("")}
+      <td>${s.assolit==null?`<span class="pill nd">n/d</span>`:s.assolit?`<span class="pill ok">${fmt1(s.globalEff)}</span>`:`<span class="pill bad">${fmt1(s.globalEff)}</span>`}</td></tr>`).join("")}</tbody>`;
+  destroyChart("radist");
+  const data=STATE.raGroups.map(g=>{ let ok=0,bad=0; STATE.students.forEach(s=>{ const v=s.raScore[g.id]; if(v==null) return; v>=STATE.threshold?ok++:bad++; }); return {ok,bad}; });
+  CHARTS.radist=new Chart($("#chRaDist"),{type:"bar",data:{labels:STATE.raGroups.map(g=>g.code),
+    datasets:[{label:"Assolit",data:data.map(d=>d.ok),backgroundColor:cssv("--ok"),borderRadius:3},
+      {label:"No assolit",data:data.map(d=>d.bad),backgroundColor:cssv("--bad"),borderRadius:3}]},
+    options:{...CHART_BASE(),scales:{x:{...CHART_BASE().scales.x,stacked:true},y:{...CHART_BASE().scales.y,stacked:true,beginAtZero:true,ticks:{...CHART_BASE().scales.y.ticks,precision:0}}}}});
+}
+$("#raExportCsv").onclick=()=>{
+  const h=["Cognoms","Nom",...STATE.raGroups.map(g=>g.code),"Global"];
+  const rows=[...STATE.students].sort((a,b)=>a.cognoms.localeCompare(b.cognoms)).map(s=>[s.cognoms,s.nom,
+    ...STATE.raGroups.map(g=>s.raScore[g.id]==null?"":s.raScore[g.id].toFixed(2)), s.globalEff==null?"":s.globalEff.toFixed(2)]);
+  const csv=[h,...rows].map(r=>r.map(x=>`"${x}"`).join(";")).join("\n");
+  dl(new Blob(["﻿"+csv],{type:"text/csv"}),"resultats_aprenentatge.csv");
+};
+
+/* ---- CONFIG ---- */
+function renderConfig(){
+  $("#subjectInput").value=STATE.subject||"";
+  $("#thInput").value=STATE.threshold;
+  $("#optShowClass").checked=!!STATE.showClassAvg;
+  $("#sheetInfoBox").innerHTML=`<p>Pestanya activa: <b>${esc(STATE.sheetUsed)}</b> (${STATE.students.length} alumnes)</p>
+    ${STATE.candidates.length>1? `<label>Canvia de pestanya:
+      <select id="sheetSwitch">${STATE.candidates.map(c=>`<option value="${esc(c.name)}" ${c.name===STATE.sheetUsed?"selected":""}>${esc(c.name)} (${c.nStudents} alumnes)</option>`).join("")}</select></label>
+      <button id="sheetSwitchApply" style="margin-top:8px">Aplica</button>` : `<p class="hint">No s'han trobat més pestanyes amb estructura de RA.</p>`}`;
+  if($("#sheetSwitchApply")) $("#sheetSwitchApply").onclick=()=>{
+    if(!lastAb) return;
+    const raw=parseWorkbook(lastAb, $("#sheetSwitch").value);
+    buildState(raw, {subject:STATE.subject,threshold:STATE.threshold,showClassAvg:STATE.showClassAvg,linkOverrides:STATE.linkOverrides});
+    saveState(); refreshAll(); renderConfig();
+  };
+  $("#linkTable").innerHTML=`<thead><tr><th>Alumne/a</th><th>Fila Assistència</th><th>Fila Material</th><th>Fila Compromís</th></tr></thead>
+   <tbody>${STATE.students.map(s=>`<tr data-key="${esc(s.email||s.fullName)}">
+     <td>${esc(s.fullName)}</td>
+     <td><input type="number" min="0" class="ov-att" value="${STATE.attendance? (s.attIdx>=0?s.attIdx+1:""):""}" ${STATE.attendance?"":"disabled"}></td>
+     <td><input type="number" min="0" class="ov-mat" value="${STATE.material? (s.matIdx>=0?s.matIdx+1:""):""}" ${STATE.material?"":"disabled"}></td>
+     <td><input type="number" min="0" class="ov-comp" value="${STATE.compromis? (s.compIdx>=0?s.compIdx+1:""):""}" ${STATE.compromis?"":"disabled"}></td>
+   </tr>`).join("")}</tbody>`;
+  $("#linkTable").onchange=e=>{
+    const tr=e.target.closest("tr"); if(!tr) return;
+    const key=tr.dataset.key;
+    const att=$(".ov-att",tr).value, mat=$(".ov-mat",tr).value, comp=$(".ov-comp",tr).value;
+    STATE.linkOverrides[key]={att: att===""?null:+att, mat: mat===""?null:+mat, comp: comp===""?null:+comp};
+    applyOverrides(); recompute(); saveState();
+  };
+}
+$("#cfgSave").onclick=()=>{
+  STATE.subject=$("#subjectInput").value.trim()||STATE.courseName;
+  const th=parseFloat($("#thInput").value); if(!isNaN(th)) STATE.threshold=th;
+  STATE.showClassAvg=$("#optShowClass").checked;
+  recompute(); saveState(); refreshAll();
+  $("#cfgSave").textContent="Desat ✓"; setTimeout(()=>$("#cfgSave").textContent="Desa",1200);
+};
+
+/* ---- MY VIEW ---- */
+function renderMyViewTab(){
+  if(ROLE==="teacher"){
+    $("#teacherPicker").hidden=false; $("#studentLogin").hidden=true;
+    const sel=$("#previewSelect");
+    sel.innerHTML=[...STATE.students].sort((a,b)=>a.fullName.localeCompare(b.fullName)).map(s=>`<option value="${s.idx}">${esc(s.fullName)}</option>`).join("");
+    sel.onchange=()=>{ myIdx=+sel.value; renderMyContent(); };
+    if(myIdx==null && STATE.students.length){ myIdx=STATE.students[0].idx; sel.value=myIdx; }
+    renderMyContent();
+  } else {
+    $("#teacherPicker").hidden=true;
+    if(myIdx==null){ $("#studentLogin").hidden=false; $("#myContent").innerHTML=""; }
+    else { $("#studentLogin").hidden=true; renderMyContent(); }
+  }
+}
+$("#loginBtn").onclick=()=>{
+  const email=($("#loginEmail").value||"").trim().toLowerCase();
+  if(!email){ $("#loginMsg").textContent="Introdueix un correu."; return; }
+  const st=STATE.students.find(s=>s.email && s.email===email);
+  if(!st){ $("#loginMsg").textContent="No s'ha trobat cap alumne/a amb aquest correu."; return; }
+  myIdx=st.idx; $("#loginMsg").textContent=""; $("#loginEmail").value=""; renderMyViewTab();
+};
+function logoutStudent(){ myIdx=null; $("#loginEmail").value=""; renderMyViewTab(); }
+
+function renderMyContent(){
+  const s=STATE.students.find(x=>x.idx===myIdx); if(!s){ $("#myContent").innerHTML=""; return; }
+  const assolitPill = s.assolit==null?`<span class="pill nd">Sense dades</span>`:s.assolit?`<span class="pill ok">Assolit</span>`:`<span class="pill bad">No assolit</span>`;
+  const raRows=STATE.raGroups.map(g=>{
+    const v=s.raScore[g.id];
+    const taskRows=g.tasks.map((t,i)=>`<tr><td>${esc(t.name)}</td><td class="num">${t.weight!=null?Math.round(t.weight*100)+"%":"—"}</td><td class="num">${fmt1(s.taskVals[g.id][i])}</td></tr>`).join("");
+    return `<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><span class="ralabel">${esc(g.code)}</span> — ${esc(g.label)}</div>
+        <div>${v==null?`<span class="pill nd">n/d</span>`:`<span class="pill ${v>=STATE.threshold?"ok":"bad"}">${v.toFixed(1)} /10</span>`}</div>
+      </div>
+      <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>Activitat</th><th class="num">Pes</th><th class="num">Nota</th></tr></thead><tbody>${taskRows}</tbody></table></div>
+    </div>`;
+  }).join("");
+  const recoveryBox = s.recovery? `<div class="warn">RA pendents de recuperar: <b>${esc(s.recovery)}</b></div>` : "";
+  const obsBox = s.observations? `<div class="card" style="margin-bottom:14px"><h3>Observacions</h3><p>${esc(s.observations)}</p></div>` : "";
+  let attBox="";
+  if(s.attendance){
+    attBox=`<div class="card stat"><div class="v">${s.attendance.absences==null?"—":s.attendance.absences}</div><div class="l">absències totals</div></div>`;
+    if(s.attendance.lost) attBox=`<div class="card" style="border-color:var(--bad)"><div class="v" style="color:var(--bad)">⚠ Pèrdua de convocatòria</div><div class="l">${s.attendance.absences} absències registrades</div></div>`;
+  }
+  const matBox = s.material&&s.material.mitjana!=null? `<div class="card stat"><div class="v">${fmt1(s.material.mitjana)}</div><div class="l">material /10</div></div>` : "";
+  let compBox="";
+  if(s.compromis){
+    compBox=`<div class="card">
+      <h3>Compromís i professionalitat</h3>
+      <div class="grid cards">
+        <div class="stat"><div class="v">${s.compromis.bon??"—"}</div><div class="l">setmanes «bon»</div></div>
+        <div class="stat"><div class="v">${s.compromis.millorar??"—"}</div><div class="l">setmanes «a millorar»</div></div>
+        <div class="stat"><div class="v">${s.compromis.sense??"—"}</div><div class="l">setmanes «sense»</div></div>
+        <div class="stat"><div class="v">${fmt1(s.compromis.compromisScore)}</div><div class="l">nota compromís /10</div></div>
+      </div></div>`;
+  }
+  const incBox = s.incidents && s.incidents.length? `<div class="card" style="margin-top:14px"><h3>Incidències</h3>${
+    s.incidents.map(i=>`<div class="incident ${i.positive?"pos":i.negative?"neg":""}"><b>${fmtDate(i.date)}</b> ${i.positive?"➕":i.negative?"➖":""} ${esc(i.reason||i.type||"")}</div>`).join("")
+  }</div>` : "";
+
+  $("#myContent").innerHTML=`
+    ${ROLE==="student"? `<div class="toolbar" style="justify-content:flex-end"><button id="logoutBtn">Tanca la sessió</button></div>` : ""}
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div><h1 style="margin:0">${esc(s.fullName)}</h1><div class="hint">${esc(STATE.subject)}</div></div>
+        <div style="text-align:right"><div class="big">${fmt1(s.globalEff)}</div>${assolitPill}${s.globalIsFallback?` <span class="hint">(mitjana dels RA; el full no tenia el total calculat)</span>`:""}</div>
+      </div>
+    </div>
+    ${recoveryBox}
+    <div class="grid cards" style="margin-bottom:14px">${attBox}${matBox}</div>
+    <h2>Resultats d'aprenentatge</h2>
+    ${STATE.showClassAvg? `<div class="chartbox" style="margin-bottom:14px"><h3>Les teves notes vs. la mitjana de classe</h3><canvas id="myRaChart" height="200"></canvas></div>` : ""}
+    ${raRows}
+    ${compBox}
+    ${incBox}
+    ${obsBox}
+  `;
+  if(ROLE==="student") $("#logoutBtn").onclick=logoutStudent;
+  if(STATE.showClassAvg){
+    destroyChart("myra");
+    CHARTS.myra=new Chart($("#myRaChart"),{type:"bar",data:{labels:STATE.raGroups.map(g=>g.code),
+      datasets:[{label:s.nom,data:STATE.raGroups.map(g=>s.raScore[g.id]==null?0:s.raScore[g.id]),backgroundColor:cssv("--s1"),borderRadius:4},
+        {label:"Classe",type:"line",data:STATE.raGroups.map(g=>STATE.classRaAvg[g.id]==null?null:STATE.classRaAvg[g.id]),borderColor:cssv("--muted"),borderWidth:1,pointRadius:3,borderDash:[4,4]}]},
+      options:{...CHART_BASE(),scales:{y:{...CHART_BASE().scales.y,min:0,max:10,beginAtZero:true}}}});
+  }
+}
+
+/* ============ EVENTS: ROLE + IMPORT ============ */
+$("#pickTeacher").onclick=()=>{ ROLE="teacher"; $("#rolePick").hidden=true; if(!loadLast()){ $("#importArea").hidden=false; } };
+$("#pickStudent").onclick=()=>{ ROLE="student"; $("#rolePick").hidden=true; $("#importArea").hidden=false; };
+
+function arrayBufferToBase64(buf){
+  let binary=""; const bytes=new Uint8Array(buf); const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));
+  return btoa(binary);
+}
+function handleFile(file){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      lastAb=rd.result;
+      const candidates=analyzeWorkbook(XLSX.read(lastAb,{type:"array",cellDates:true}));
+      if(candidates.length>1){
+        $("#sheetPickWrap").hidden=false;
+        $("#sheetPick").innerHTML=candidates.slice().sort((a,b)=>b.nStudents-a.nStudents).map(c=>`<option value="${esc(c.name)}">${esc(c.name)} (${c.nStudents} alumnes)</option>`).join("");
+      } else { $("#sheetPickWrap").hidden=true; }
+      importWithSheet(candidates.length? candidates.slice().sort((a,b)=>b.nStudents-a.nStudents)[0].name : null);
+    }catch(e){ alert("Error en importar: "+e.message); console.error(e); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+function importWithSheet(sheetName){
+  const raw=parseWorkbook(lastAb, sheetName);
+  const cfg = ROLE==="teacher"? loadSavedConfig(raw.courseName) : null;
+  buildState(raw, cfg);
+  if(ROLE==="teacher"){
+    saveState();
+    try{ localStorage.setItem("seguimentra:lastfile", arrayBufferToBase64(lastAb)); localStorage.setItem("seguimentra:last", storeKey()); }catch(e){}
+  }
+  myIdx=null;
+  refreshAll();
+  show(ROLE==="teacher"?"dash":"myview");
+}
+$("#sheetPickApply").onclick=()=>importWithSheet($("#sheetPick").value);
+$("#dropzone").onclick=()=>$("#fileInput").click();
+$("#fileInput").onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
+["dragover","dragenter"].forEach(ev=>$("#dropzone").addEventListener(ev,e=>{e.preventDefault();$("#dropzone").classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>$("#dropzone").addEventListener(ev,e=>{e.preventDefault();$("#dropzone").classList.remove("drag");}));
+$("#dropzone").addEventListener("drop",e=>{ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+$("#btnReimport").onclick=()=>{
+  show("import"); $("#rolePick").hidden=false; $("#importArea").hidden=true; $("#sheetPickWrap").hidden=true;
+};
+$("#btnReset").onclick=()=>{
+  if(confirm("Segur que vols esborrar totes les dades i la configuració desades en aquest navegador?")){
+    try{ Object.keys(localStorage).filter(k=>k.startsWith("seguimentra:")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+    location.reload();
+  }
+};
+$("#tabs").onclick=e=>{
+  const b=e.target.closest("[data-v]"); if(!b || b.hidden) return;
+  if(!STATE && b.dataset.v!=="import"){ alert("Primer has d'importar un fitxer."); return; }
+  show(b.dataset.v);
+};
+
+/* boot */
+show("import");
+</script>
+</body>
+</html>
