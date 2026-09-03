@@ -30,14 +30,16 @@ const SHEET_NAME = "RESUM RAs";                 // pestanya amb les notes (p.ex.
 const THRESHOLD = 5;                            // nota mínima (/10) per considerar un RA "assolit"
 const TEACHER_CODE = "CANVIA-AQUEST-CODI-PER-UN-DE-LLARG-I-SECRET"; // "contrasenya" del professorat
 const ACCESS_SHEET_NAME = "Accés";              // pestanya on es guarden els codis de l'alumnat
-const PAGE_URL = "https://EL-TEU-USUARI.github.io/EL-TEU-REPO/seguiment-modul.html"; // on hagis publicat l'eina
+const PAGE_URL = ""; // opcional: només si has publicat seguiment-modul.html en una URL real. Deixa-ho buit si el/la reps com a fitxer.
 
 /**
  * INSTRUCCIONS DE DESPLEGAMENT (fes-ho un sol cop) — detalls a apps-script/README.md
  * 1. Obre el full de càlcul a Google Sheets.
  * 2. Extensions > Apps Script. Esborra el codi d'exemple i enganxa TOT aquest fitxer.
- * 3. Edita les constants de dalt: SHEET_NAME, TEACHER_CODE (posa'n un de llarg i
- *    difícil d'endevinar), PAGE_URL (la URL on quedarà publicat seguiment-modul.html).
+ * 3. Edita les constants de dalt: SHEET_NAME i TEACHER_CODE (posa'n un de llarg
+ *    i difícil d'endevinar). Deixa PAGE_URL buit si distribueixes tu mateix/a
+ *    seguiment-modul.html (per Drive, correu, etc.) en lloc de publicar-lo en
+ *    una pàgina web.
  * 4. Desa (icona de disquet).
  * 5. Desplega > Nova implementació > tipus "Aplicació web".
  *      - Executa com a: "Jo" (el propietari del full).
@@ -46,9 +48,9 @@ const PAGE_URL = "https://EL-TEU-USUARI.github.io/EL-TEU-REPO/seguiment-modul.ht
  * 6. Autoritza els permisos que et demani Google. Copia la URL que acaba en "/exec".
  * 7. Torna al full de càlcul (recarrega'l si cal) — hi apareixerà un menú nou
  *    "Seguiment". Fes clic a "1. Genera codis d'accés" i després a "2. Envia
- *    enllaços per correu": cada alumne/a rebrà un correu amb el seu enllaç personal.
- *    El teu propi enllaç (professorat) és:
- *    PAGE_URL + "?api=" + LA_URL_DE_LEXEC + "&code=" + TEACHER_CODE
+ *    enllaços per correu": cada alumne/a rebrà un correu amb la URL de l'exec
+ *    i el seu codi personal, per enganxar a seguiment-modul.html. El teu propi
+ *    accés (professorat) és la mateixa URL de l'exec amb el codi TEACHER_CODE.
  * 8. Cada vegada que canviïs el codi, torna a "Gestiona implementacions" i puja
  *    una nova versió (si no, els canvis no es veuran reflectits).
  */
@@ -137,7 +139,13 @@ function generateCode_() {
   return s;
 }
 
-/** Envia per correu, a qui tingui un codi a la pestanya "Accés", el seu enllaç personal. */
+/**
+ * Envia per correu, a qui tingui un codi a la pestanya "Accés", la URL de
+ * l'aplicatiu i el seu codi personal (per separat i curts, perquè no es
+ * trenquin en copiar-los). Si PAGE_URL té valor, també hi afegeix l'enllaç
+ * combinat que connecta sol; si no, només cal enganxar els dos valors a
+ * seguiment-modul.html.
+ */
 function enviaEnllacosPersonalitzats() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ACCESS_SHEET_NAME);
   if (!sh) { SpreadsheetApp.getUi().alert("Primer genera els codis (menú Seguiment > 1. Genera codis d'accés)."); return; }
@@ -147,10 +155,24 @@ function enviaEnllacosPersonalitzats() {
   for (let r = 1; r < rows.length; r++) {
     const email = rows[r][0], nom = rows[r][1], code = rows[r][2];
     if (!email || !code) continue;
-    const link = PAGE_URL + "?api=" + encodeURIComponent(execUrl) + "&code=" + encodeURIComponent(code);
-    MailApp.sendEmail(email, "El teu enllaç de seguiment del mòdul",
-      "Hola " + nom + ",\n\nAquest és el teu enllaç personal per consultar el teu seguiment del mòdul:\n" + link
-      + "\n\nÉs personal i intransferible: no el comparteixis amb ningú.\n");
+    let plain = "Hola " + nom + ",\n\n"
+      + "Per consultar el teu seguiment del mòdul, obre el fitxer seguiment-modul.html "
+      + "que t'ha donat el/la professor/a i enganxa-hi aquests dos valors:\n\n"
+      + "URL de l'aplicatiu:\n" + execUrl + "\n\n"
+      + "El teu codi d'accés:\n" + code + "\n\n";
+    let html = "<p>Hola " + nom + ",</p>"
+      + "<p>Per consultar el teu seguiment del mòdul, obre el fitxer <b>seguiment-modul.html</b> "
+      + "que t'ha donat el/la professor/a i enganxa-hi aquests dos valors:</p>"
+      + "<p><b>URL de l'aplicatiu:</b><br><code>" + execUrl + "</code></p>"
+      + "<p><b>El teu codi d'accés:</b><br><code>" + code + "</code></p>";
+    if (PAGE_URL) {
+      const link = PAGE_URL + "?api=" + encodeURIComponent(execUrl) + "&code=" + encodeURIComponent(code);
+      plain += "També pots fer clic directament en aquest enllaç:\n" + link + "\n\n";
+      html += "<p>També pots fer clic directament en aquest enllaç: <a href=\"" + link + "\">" + link + "</a></p>";
+    }
+    plain += "És personal i intransferible: no el comparteixis amb ningú.\n";
+    html += "<p>És personal i intransferible: no el comparteixis amb ningú.</p>";
+    MailApp.sendEmail(email, "El teu accés al seguiment del mòdul", plain, { htmlBody: html });
     sent++;
   }
   SpreadsheetApp.getUi().alert("S'han enviat " + sent + " correus.");

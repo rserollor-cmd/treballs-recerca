@@ -20,10 +20,10 @@ l'alumnat a `@apellesmestres.cat`.
    - `THRESHOLD`: nota mínima sobre 10 per considerar un RA "assolit" (per defecte 5).
    - `TEACHER_CODE`: posa-hi un codi llarg i difícil d'endevinar (és la teva
      "contrasenya" per accedir al tauler complet). **No el deixis com l'exemple.**
-   - `PAGE_URL`: la URL on quedarà publicat `seguiment-modul.html`. Aquest
-     repositori ja té GitHub Pages configurat des de la branca `main`, així
-     que un cop hi fusioneu aquest canvi serà
-     `https://ins-apelles-mestres.github.io/treballs-recerca/seguiment-modul.html`.
+   - `PAGE_URL`: deixa-ho en blanc (`""`) si distribueixes tu mateix/a el
+     fitxer `seguiment-modul.html` (per exemple penjant-lo a Classroom o
+     enviant-lo per correu) — és el cas normal. Només cal omplir-ho si
+     publiques l'eina en una pàgina web real (GitHub Pages o similar).
 5. Desa (icona de disquet).
 6. **Desplega > Nova implementació**:
    - Tipus: **Aplicació web**.
@@ -39,13 +39,18 @@ l'alumnat a `@apellesmestres.cat`.
      tornar a executar quan s'afegeixi algú nou: no toca els codis que ja
      existeixen.
    - **2. Envia enllaços per correu**: envia a cada alumne/a (de la pestanya
-     "Accés") un correu amb el seu enllaç personal.
+     "Accés") un correu amb la URL de l'exec i el seu codi personal, per
+     separat i curts (a més d'un enllaç combinat clicable, si has omplert
+     `PAGE_URL`).
+10. Envia (per Classroom, correu, USB...) el fitxer `seguiment-modul.html`
+    a tot l'alumnat. El teu propi accés (professorat) és la mateixa URL de
+    l'exec (pas 8) amb el codi `TEACHER_CODE`.
 
-El teu propi enllaç (professorat) és:
-
-```
-<PAGE_URL>?api=<LA_URL_QUE_ACABA_EN_/exec>&code=<TEACHER_CODE>
-```
+Un cop configurat, l'eina es connecta en directe amb el full: qualsevol
+canvi que facis a les notes (o a qualsevol altra pestanya que llegeixi
+`Codi.gs`) es reflecteix sol la propera vegada que algú obri el fitxer o
+faci clic a "🔄 Actualitza" — no cal tornar a enviar el fitxer per això,
+només si en algun moment canvies el propi `seguiment-modul.html`.
 
 ## Com donar-li el correu de cada alumne/a
 
