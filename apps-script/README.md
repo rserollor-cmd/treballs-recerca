@@ -24,18 +24,6 @@ l'alumnat a `@apellesmestres.cat`.
      fitxer `seguiment-modul.html` (per exemple penjant-lo a Classroom o
      enviant-lo per correu) — és el cas normal. Només cal omplir-ho si
      publiques l'eina en una pàgina web real (GitHub Pages o similar).
-   - `HTML_FILE_ID`: opcional. Si el vols, el correu automàtic pot adjuntar
-     el mateix `seguiment-modul.html` perquè l'alumnat no l'hagi de rebre
-     per un altre canal. Per obtenir l'ID:
-     1. Puja `seguiment-modul.html` al teu Google Drive (arrossega'l a una
-        carpeta a drive.google.com).
-     2. Fes-hi clic dret > Obtenir enllaç, o obre'l i mira la barra
-        d'adreces: la URL té la forma
-        `https://drive.google.com/file/d/ID_DEL_FITXER/view`.
-     3. Copia només la part `ID_DEL_FITXER` (una cadena llarga de lletres i
-        números) i enganxa-la a `HTML_FILE_ID`.
-     Si el deixes en blanc, els correus no duen cap fitxer adjunt, només la
-     URL i el codi (que és el mínim necessari).
 5. Desa (icona de disquet).
 6. **Desplega > Nova implementació**:
    - Tipus: **Aplicació web**.
