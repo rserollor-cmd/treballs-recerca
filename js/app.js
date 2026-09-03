@@ -48,21 +48,20 @@ function obrirPDF(pdfUrl, titol, autor, tutor) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ─── COMPTADOR DE VISITES ─────────────────────────────────────────────────────
+// ─── COMPTADOR DE VISITES (Firestore) ────────────────────────────────────────
 (function() {
-  const APIs = [
-    () => fetch('https://api.counterapi.dev/v1/apellesmestres-tr/visites/up').then(r => r.json()).then(d => d && d.count),
-    () => fetch('https://hits.sh/ins-apelles-mestres.github.io/treballs-recerca.json').then(r => r.json()).then(d => d && (d.total || d.count))
-  ];
-  function tryNext(i) {
-    if (i >= APIs.length) return;
-    APIs[i]().then(count => {
-      if (!count) { tryNext(i + 1); return; }
+  const db = firebase.firestore();
+  const ref = db.collection('stats').doc('visites');
+  ref.update({ count: firebase.firestore.FieldValue.increment(1) })
+    .catch(() => ref.set({ count: 1 }))
+    .then(() => ref.get())
+    .then(snap => {
+      const count = snap.exists ? snap.data().count : null;
+      if (!count) return;
       document.getElementById('stat-visites').textContent = Number(count).toLocaleString('ca-ES');
       document.getElementById('stat-bloc-visites').hidden = false;
-    }).catch(() => tryNext(i + 1));
-  }
-  tryNext(0);
+    })
+    .catch(() => {});
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 
