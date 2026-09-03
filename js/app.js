@@ -52,16 +52,16 @@ function obrirPDF(pdfUrl, titol, autor, tutor) {
 (function() {
   const db = firebase.firestore();
   const ref = db.collection('stats').doc('visites');
-  ref.update({ count: firebase.firestore.FieldValue.increment(1) })
-    .catch(() => ref.set({ count: 1 }))
+  ref.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true })
     .then(() => ref.get())
     .then(snap => {
-      const count = snap.exists ? snap.data().count : null;
+      if (!snap.exists) return;
+      const count = snap.data().count;
       if (!count) return;
       document.getElementById('stat-visites').textContent = Number(count).toLocaleString('ca-ES');
       document.getElementById('stat-bloc-visites').hidden = false;
     })
-    .catch(() => {});
+    .catch(err => console.warn('Comptador visites:', err));
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 
