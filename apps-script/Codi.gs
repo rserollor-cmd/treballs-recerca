@@ -7,35 +7,45 @@
  * aplicació web, l'eina seguiment-modul.html s'hi pot connectar per llegir les dades
  * sempre actualitzades, sense haver de baixar ni pujar cap fitxer .xlsx.
  *
- * Cada persona que hi accedeix s'identifica amb el SEU compte de Google (el que té
- * iniciat al navegador) — no calen contrasenyes ni introduir cap correu a mà:
+ * Cada persona que hi accedeix s'identifica amb el SEU compte de Google — no calen
+ * contrasenyes ni introduir cap correu a mà:
  *   - Si el correu és a TEACHER_EMAILS -> pot demanar les dades de TOTA la classe.
  *   - Si el correu coincideix amb el d'un alumne/a -> només rep LES SEVES dades.
  *   - Si no coincideix amb res -> resposta d'error, mai dades d'altres persones.
  *
- * CONFIGURACIÓ (edita només aquestes 3 constants)
+ * DOS MODES D'IDENTIFICACIÓ (tria el que et calgui a CLIENT_ID més avall)
+ *   A) Un sol domini Google Workspace (senzill): si QUI POSSEEIX el full i TOT
+ *      l'alumnat són del mateix domini (p.ex. tots @elteudomini.cat), deixa
+ *      CLIENT_ID buit ("") i desplega amb «Qui té accés: Anyone within [domini]».
+ *      Google identifica sol qui truca (Session.getActiveUser()).
+ *   B) Dominis diferents (p.ex. professorat @xtec.cat, alumnat @elteuinstitut.cat):
+ *      l'opció "dins del domini" només en permet UN. Cal fer «Inicia sessió amb
+ *      Google» des de la pàgina web (OAuth) i verificar aquí el testimoni (token)
+ *      rebut — funciona amb qualsevol combinació de dominis. Omple CLIENT_ID amb
+ *      el teu OAuth Client ID (veute apps-script/README.md) i desplega amb «Qui
+ *      té accés: Anyone».
+ *
+ * CONFIGURACIÓ (edita només aquestes constants)
  */
 const SHEET_NAME = "RESUM RAs";                 // pestanya amb les notes (p.ex. "AVALUACIÓ" o "RESUM RAs")
 const TEACHER_EMAILS = ["EL_TEU_CORREU@exemple.cat"]; // correus amb accés al tauler complet
 const THRESHOLD = 5;                            // nota mínima (/10) per considerar un RA "assolit"
+const CLIENT_ID = "";                           // OAuth Client ID (mode B). Deixa "" pel mode A.
 
 /**
- * INSTRUCCIONS DE DESPLEGAMENT (fes-ho un sol cop)
+ * INSTRUCCIONS DE DESPLEGAMENT — veure apps-script/README.md per als detalls
+ * complets (inclou el mode B, amb OAuth, pas a pas). Resum ràpid del mode A:
  * 1. Obre el full de càlcul a Google Sheets.
  * 2. Extensions > Apps Script. Esborra el codi d'exemple i enganxa TOT aquest fitxer.
- * 3. Edita les 3 constants de dalt (nom de la pestanya i el/s teu/s correu/s).
+ * 3. Edita les constants de dalt (pestanya, correus de professorat, llindar).
  * 4. Desa (icona de disquet).
  * 5. Desplega > Nova implementació > tipus "Aplicació web".
  *      - Executa com a: "Jo" (el propietari del full).
- *      - Qui té accés: "Qualsevol persona dins de [el teu domini]"
- *        (ha de ser un domini Google Workspace/institucional; amb comptes Gmail
- *        personals aquesta identificació automàtica no funciona).
- *   IMPORTANT: tot i triar "Executa com a: Jo", cal l'opció de domini a "Qui té
- *   accés" perquè Google permeti identificar qui truca (Session.getActiveUser()).
+ *      - Qui té accés: "Anyone within [el teu domini]" (mode A) o "Anyone" (mode B).
  * 6. Autoritza els permisos que et demani Google.
- * 7. Copia la URL que et dona ("...script.google.com/macros/s/.../exec").
- *      Aquesta és la URL que has de posar a seguiment-modul.html (a Configuració,
- *      o afegint-la a l'enllaç que comparteixis: ...seguiment-modul.html?api=URL ).
+ * 7. Copia la URL que et dona ("...script.google.com/macros/s/.../exec") i posa-la
+ *    a seguiment-modul.html (camp "URL de l'aplicatiu", o a l'enllaç que
+ *    comparteixis: ...seguiment-modul.html?api=URL ).
  * 8. Cada vegada que canviïs el codi, torna a "Gestiona implementacions" i puja
  *    una nova versió (si no, els canvis no es veuran reflectits).
  */
@@ -43,19 +53,20 @@ const THRESHOLD = 5;                            // nota mínima (/10) per consid
 function doGet(e) {
   const callback = e && e.parameter && e.parameter.callback;
   const action = (e && e.parameter && e.parameter.action) || "me";
+  const idToken = e && e.parameter && e.parameter.id_token;
   let payload;
   try {
-    const email = normEmail_(Session.getActiveUser().getEmail());
-    if (!email) {
-      payload = { error: "no-auth", message: "No s'ha pogut identificar el teu compte de Google. Assegura't d'haver iniciat sessió amb el correu de l'institut." };
+    const identity = resolveIdentity_(idToken);
+    if (identity.error) {
+      payload = identity;
     } else if (action === "full") {
-      if (TEACHER_EMAILS.map(normEmail_).indexOf(email) < 0) {
+      if (TEACHER_EMAILS.map(normEmail_).indexOf(identity.email) < 0) {
         payload = { error: "forbidden", message: "Aquest correu no té accés al tauler complet." };
       } else {
         payload = buildFullPayload_();
       }
     } else {
-      payload = buildMePayload_(email);
+      payload = buildMePayload_(identity.email);
     }
   } catch (err) {
     payload = { error: "exception", message: String(err) };
@@ -65,6 +76,47 @@ function doGet(e) {
     return ContentService.createTextOutput(callback + "(" + json + ");").setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Determina qui truca. Si CLIENT_ID és buit (mode A), fa servir la identitat de
+ * sessió de Google (només funciona si tothom és del mateix domini Workspace).
+ * Si CLIENT_ID té valor (mode B), exigeix i verifica un testimoni (id_token)
+ * obtingut amb "Inicia sessió amb Google" a la pàgina — funciona entre dominis.
+ */
+function resolveIdentity_(idToken) {
+  if (CLIENT_ID) {
+    if (!idToken) {
+      return { error: "no-auth", message: "Cal iniciar sessió amb Google des de la pàgina (botó «Inicia sessió amb Google»)." };
+    }
+    return verifyIdToken_(idToken);
+  }
+  const email = normEmail_(Session.getActiveUser().getEmail());
+  if (!email) {
+    return { error: "no-auth", message: "No s'ha pogut identificar el teu compte de Google. Assegura't d'haver iniciat sessió amb el correu de l'institut." };
+  }
+  return { email };
+}
+
+/** Verifica un ID token de Google Identity Services contra l'endpoint oficial de Google. */
+function verifyIdToken_(idToken) {
+  let info;
+  try {
+    const resp = UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken), { muteHttpExceptions: true });
+    if (resp.getResponseCode() !== 200) {
+      return { error: "no-auth", message: "El testimoni de Google no és vàlid o ha caducat. Torna a iniciar sessió." };
+    }
+    info = JSON.parse(resp.getContentText());
+  } catch (err) {
+    return { error: "exception", message: "No s'ha pogut verificar la identitat: " + String(err) };
+  }
+  if (info.aud !== CLIENT_ID) {
+    return { error: "no-auth", message: "El testimoni no correspon a aquesta aplicació." };
+  }
+  if (info.email_verified !== "true" && info.email_verified !== true) {
+    return { error: "no-auth", message: "El correu de Google associat no està verificat." };
+  }
+  return { email: normEmail_(info.email) };
 }
 
 function normEmail_(s) { return String(s || "").trim().toLowerCase(); }
