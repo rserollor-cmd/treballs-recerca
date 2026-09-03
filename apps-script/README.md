@@ -47,12 +47,23 @@ El teu propi enllaç (professorat) és:
 <PAGE_URL>?api=<LA_URL_QUE_ACABA_EN_/exec>&code=<TEACHER_CODE>
 ```
 
-## Si un alumne/a encara no té correu al full
+## Com donar-li el correu de cada alumne/a
 
 `generarCodisAccess` només pot assignar codi (i `enviaEnllacosPersonalitzats`
-només pot enviar correu) a qui tingui un correu detectat: una columna
-"Correu"/"Email" al full de notes, o el seu nom i correu a la pestanya
-"Contacte". Afegeix-los-hi i torna a executar el pas 1 del menú.
+només pot enviar correu) a qui tingui un correu detectat. Es reconeix
+qualsevol d'aquestes maneres (fes servir la que et vagi millor):
+
+- Una pestanya senzilla amb columnes **Cognoms**, **Nom(s)** i **Correu**
+  (es pot dir com vulguis, p. ex. "Correus") — la manera més fàcil si
+  encara no tens els correus enlloc: crea-la amb les mateixes files, en el
+  mateix ordre, que la pestanya de notes, i omple la columna Correu.
+- Una columna "Correu"/"Email" directament al full de notes, a prop de
+  Cognoms/Nom.
+- El nom i correu de cadascú a la pestanya "Contacte".
+
+Un cop afegits els correus, torna a executar el pas 1 del menú ("Genera
+codis d'accés") — assigna codi només a qui encara no en tingui, així que és
+segur tornar-lo a executar quan afegeixis algú nou.
 
 ## Cada cop que canviïs el codi de l'Apps Script
 

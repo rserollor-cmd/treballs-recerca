@@ -333,13 +333,54 @@ function parseContacte_(rows) {
   return map;
 }
 
+/**
+ * Pestanya senzilla de correus fet a mida (p.ex. "Correus"): columnes Cognoms,
+ * Nom(s) i Correu (mateix ordre que la pestanya de notes). Es detecta buscant
+ * qualsevol pestanya amb una capçalera que tingui "Cognoms" i "Correu"/"Email",
+ * independentment de com s'anomeni la pestanya. Retorna un mapa
+ * "cognoms|nom" (normalitzat) -> correu, i també la llista en ordre de fila
+ * (per si cal repescar per posició).
+ */
+function findCorreusSheet_() {
+  const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  for (const sh of sheets) {
+    const rows = sh.getDataRange().getValues();
+    const hdr = findRow_(rows, row => {
+      const t = row.map(clean_);
+      return t.some(x => /^cognoms$/i.test(x)) && t.some(x => /^(correu|email|correu electr[oò]nic)$/i.test(x));
+    });
+    if (hdr >= 0) return { rows, hdr };
+  }
+  return null;
+}
+function parseCorreusSheet_() {
+  const found = findCorreusSheet_();
+  if (!found) return null;
+  const { rows, hdr } = found;
+  let cognomsCol = null, nomCol = null, correuCol = null;
+  (rows[hdr] || []).forEach((v, i) => { const t = clean_(v);
+    if (/^cognoms$/i.test(t)) cognomsCol = i;
+    else if (/^noms?$/i.test(t)) nomCol = i;
+    else if (/^(correu|email|correu electr[oò]nic)$/i.test(t)) correuCol = i;
+  });
+  const dataStart = hdr + 1, map = {}, list = [];
+  for (let r = dataStart; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const cognoms = clean_(row[cognomsCol]), nom = nomCol != null ? clean_(row[nomCol]) : "", email = clean_(row[correuCol]);
+    if (!cognoms && !nom) continue;
+    list.push(email ? email.toLowerCase() : "");
+    if (email) map[normName_(cognoms) + "|" + normName_(nom)] = email.toLowerCase();
+  }
+  return { map, list };
+}
+
 function loadData_() {
-  const sheetNames = SpreadsheetApp.getActiveSpreadsheet().getSheets().map(s => s.getName());
   const rows = sheetRows_(SHEET_NAME);
   if (!rows) throw new Error("No s'ha trobat la pestanya «" + SHEET_NAME + "». Revisa la constant SHEET_NAME.");
   const tr = findRaTitleRow_(rows);
   if (tr < 0) throw new Error("La pestanya «" + SHEET_NAME + "» no té l'estructura esperada (RA / TOTAL RA).");
   const ra = parseRaSheet_(rows, tr);
+  const sheetNames = SpreadsheetApp.getActiveSpreadsheet().getSheets().map(s => s.getName());
 
   let titleCell = "";
   for (let r = 0; r < 3; r++) { const v = clean_((rows[r] || [])[0]); if (v) { titleCell = v; break; } }
@@ -349,6 +390,7 @@ function loadData_() {
   const material = sheetNames.indexOf("Material") >= 0 ? parseMaterial_(sheetRows_("Material")) : null;
   const incidents = sheetNames.indexOf("Incidències") >= 0 ? parseIncidencies_(sheetRows_("Incidències")) : null;
   const contacteMap = sheetNames.indexOf("Contacte") >= 0 ? parseContacte_(sheetRows_("Contacte")) : null;
+  const correus = parseCorreusSheet_();
 
   function bestNameIndex(list, nom) {
     if (!list) return -1;
@@ -363,6 +405,11 @@ function loadData_() {
     if (s.matIdx < 0 && material && material[i]) s.matIdx = i;
     s.compIdx = compromis ? bestNameIndex(compromis, s.nom) : -1;
     if (s.compIdx < 0 && compromis && compromis[i]) s.compIdx = i;
+    if (!s.email && correus) {
+      const key = normName_(s.cognoms) + "|" + normName_(s.nom);
+      if (correus.map[key]) s.email = correus.map[key];
+      else if (correus.list[i]) s.email = correus.list[i];
+    }
     if (!s.email && contacteMap) {
       const key = Object.keys(contacteMap).filter(k => namesMatch_(k, s.fullName))[0];
       if (key) s.email = contacteMap[key];
