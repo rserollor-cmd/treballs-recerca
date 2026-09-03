@@ -49,13 +49,21 @@ function obrirPDF(pdfUrl, titol, autor, tutor) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── COMPTADOR DE VISITES ─────────────────────────────────────────────────────
-fetch('https://api.counterapi.dev/v1/apellesmestres-tr/visites/up')
-  .then(r => r.json())
-  .then(d => {
-    if (!d || !d.count) return;
-    document.getElementById('stat-visites').textContent = d.count.toLocaleString('ca-ES');
-  })
-  .catch(() => {});
+(function() {
+  const APIs = [
+    () => fetch('https://api.counterapi.dev/v1/apellesmestres-tr/visites/up').then(r => r.json()).then(d => d && d.count),
+    () => fetch('https://hits.sh/ins-apelles-mestres.github.io/treballs-recerca.json').then(r => r.json()).then(d => d && (d.total || d.count))
+  ];
+  function tryNext(i) {
+    if (i >= APIs.length) return;
+    APIs[i]().then(count => {
+      if (!count) { tryNext(i + 1); return; }
+      document.getElementById('stat-visites').textContent = Number(count).toLocaleString('ca-ES');
+      document.getElementById('stat-bloc-visites').hidden = false;
+    }).catch(() => tryNext(i + 1));
+  }
+  tryNext(0);
+})();
 // ─────────────────────────────────────────────────────────────────────────────
 
 (function () {
