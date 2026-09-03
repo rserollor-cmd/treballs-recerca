@@ -31,6 +31,9 @@ const THRESHOLD = 5;                            // nota mínima (/10) per consid
 const TEACHER_CODE = "CANVIA-AQUEST-CODI-PER-UN-DE-LLARG-I-SECRET"; // "contrasenya" del professorat
 const ACCESS_SHEET_NAME = "Accés";              // pestanya on es guarden els codis de l'alumnat
 const PAGE_URL = ""; // opcional: només si has publicat seguiment-modul.html en una URL real. Deixa-ho buit si el/la reps com a fitxer.
+const EXEC_URL = ""; // ENGANXA AQUÍ la URL de "Desplega > Gestiona implementacions" (acaba en /exec).
+                      // No la deixis en blanc: si Google la detecta sola de vegades dona una altra
+                      // URL amb "/a/EL_TEU_DOMINI/" que no funciona per a comptes d'un altre domini.
 
 /**
  * INSTRUCCIONS DE DESPLEGAMENT (fes-ho un sol cop) — detalls a apps-script/README.md
@@ -46,16 +49,20 @@ const PAGE_URL = ""; // opcional: només si has publicat seguiment-modul.html en
  *      - Qui té accés: "Anyone" (no cal restringir per domini: el codi és el que
  *        protegeix l'accés, no la identitat de Google).
  * 6. Autoritza els permisos que et demani Google. Copia la URL que acaba en "/exec".
- * 7. Torna al full de càlcul (recarrega'l si cal) — hi apareixerà un menú nou
+ * 7. Torna a l'editor, enganxa aquesta URL a la constant EXEC_URL (a dalt del
+ *    tot) i desa de nou. NO confiïs en què l'script la detecti sol: en comptes
+ *    de comparar, digues-li exactament quina és.
+ * 8. Torna al full de càlcul (recarrega'l si cal) — hi apareixerà un menú nou
  *    "Seguiment". Fes clic a "1. Genera codis d'accés" i després a "2. Envia
- *    enllaços per correu": cada alumne/a rebrà un correu amb la URL de l'exec
- *    i el seu codi personal, per enganxar a seguiment-modul.html. El teu propi
- *    accés (professorat) és la mateixa URL de l'exec amb el codi TEACHER_CODE.
- * 8. Envia tu mateix/a (Classroom, correu com a adjunt manual, etc.) el fitxer
+ *    enllaços per correu": cada alumne/a rebrà un correu amb EXEC_URL i el
+ *    seu codi personal, per enganxar a seguiment-modul.html. El teu propi
+ *    accés (professorat) és la mateixa EXEC_URL amb el codi TEACHER_CODE.
+ * 9. Envia tu mateix/a (Classroom, correu com a adjunt manual, etc.) el fitxer
  *    seguiment-modul.html a tot l'alumnat — un cop n'hi ha prou, no cal repetir-ho
  *    quan actualitzis notes: l'eina llegeix el full en directe cada vegada.
- * 9. Cada vegada que canviïs el codi, torna a "Gestiona implementacions" i puja
- *    una nova versió (si no, els canvis no es veuran reflectits).
+ * 10. Cada vegada que canviïs el codi, torna a "Gestiona implementacions" i puja
+ *     una nova versió (si no, els canvis no es veuran reflectits). L'EXEC_URL
+ *     no sol canviar quan puges una versió nova de la MATEIXA implementació.
  */
 
 function doGet(e) {
@@ -152,7 +159,8 @@ function generateCode_() {
 function enviaEnllacosPersonalitzats() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ACCESS_SHEET_NAME);
   if (!sh) { SpreadsheetApp.getUi().alert("Primer genera els codis (menú Seguiment > 1. Genera codis d'accés)."); return; }
-  const execUrl = ScriptApp.getService().getUrl();
+  if (!EXEC_URL) { SpreadsheetApp.getUi().alert("Falta EXEC_URL: enganxa a la constant EXEC_URL (a dalt del codi) la URL de Desplega > Gestiona implementacions abans d'enviar correus."); return; }
+  const execUrl = EXEC_URL;
   const rows = sh.getDataRange().getValues();
   let sent = 0;
   for (let r = 1; r < rows.length; r++) {
